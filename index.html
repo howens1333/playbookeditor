@@ -99,6 +99,8 @@
 .standalone-note .note-content{flex:1;min-width:0}
 .standalone-note .rich-output,.standalone-note .rich-output p,.standalone-note p{color:inherit}
 @media print{.standalone-note,.rich-output mark,.rich-edit mark{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+.live-edit{outline:1px solid var(--blue);outline-offset:4px;cursor:text;min-height:1.3em;caret-color:var(--blue)}
+@media print{.live-edit{outline:0}}
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
 <script>
@@ -131,28 +133,29 @@ function scheduleRender(){guide.updated=Date.now();$('#saveStatus').textContent=
 function update(mut,needsInspect=false){mut();scheduleRender();fitPages();renderOutline();if(needsInspect)renderInspector()}
 function bindBlocks(){document.querySelectorAll('.block').forEach(el=>{el.addEventListener('dblclick',e=>{if(e.target.closest('button,input,textarea'))return;startInlineEdit(el)});el.addEventListener('click',()=>{selected=el.dataset.id;renderInspector();document.querySelectorAll('.block').forEach(x=>x.classList.toggle('active',x.dataset.id===selected));renderOutline()});el.addEventListener('keydown',e=>{if(e.key==='Enter'){selected=el.dataset.id;renderInspector();renderOutline()}});el.addEventListener('dragstart',e=>{dragId=el.dataset.id;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',dragId)});el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('drop-before')});el.addEventListener('dragleave',()=>el.classList.remove('drop-before'));el.addEventListener('drop',e=>{e.preventDefault();el.classList.remove('drop-before');moveBlock(dragId,el.dataset.id)});el.addEventListener('dragend',()=>document.querySelectorAll('.block').forEach(x=>x.classList.remove('drop-before')))});document.querySelectorAll('.stepimg').forEach(img=>{if(!img.complete)img.onload=()=>{if(!img.dataset.measured){img.dataset.measured='1';}}})}
 function startInlineEdit(el){
- const b=guide.blocks.find(x=>x.id===el.dataset.id);if(!b||el.querySelector('.quick-edit'))return;
- selected=b.id;renderInspector();renderOutline();document.querySelectorAll('.block').forEach(x=>x.classList.toggle('active',x===el));
+ const b=guide.blocks.find(x=>x.id===el.dataset.id);if(!b||el.querySelector('[data-live-edit="true"]'))return;
  const key=b.type==='setup'?'summary':b.type==='checklist'?'text':b.type==='heading'?'title':b.type==='photo'?'caption':'text';
  const useRich=['image','text','checkpoint','note','whatif','troubleshooting'].includes(b.type);
- const old=useRich?(b[key+'Html']||esc(b[key]||'').replace(/\n/g,'<br>')):esc(b[key]||'').replace(/\n/g,'<br>');
- const target=b.type==='image'?el.querySelector('.split>div:first-child .rich-output,.split>div:first-child p,.split>div:nth-child(2) .rich-output,.split>div:nth-child(2) p'):b.type==='setup'?el.querySelector('.toolsgrid>div:nth-child(2) p'):b.type==='checklist'?el.querySelector('.checks'):b.type==='heading'?el.querySelector('h4'):el.querySelector('.rich-output,.note-callout,.troublehead,.block>p')||el;
- if(!target)return;
- const input=document.createElement('div');input.className='quick-edit';input.contentEditable='true';input.setAttribute('role','textbox');input.setAttribute('aria-label','Edit block text');
- input.innerHTML=useRich?cleanHtml(old):old;
- target.style.display='none';target.insertAdjacentElement('afterend',input);
- let finished=false;function finish(commit){if(finished)return;finished=true;
-  if(commit){b[key]=input.innerText;if(useRich)b[key+'Html']=cleanHtml(input.innerHTML);scheduleRender()}
-  input.remove();target.style.display='';fitPages();renderInspector();renderOutline();
+ const target=b.type==='image'?el.querySelector('.split .rich-output,.split p'):b.type==='setup'?el.querySelector('.toolsgrid>div:nth-child(2) p'):b.type==='checklist'?el.querySelector('.checks'):b.type==='heading'?el.querySelector('h4'):el.querySelector('.rich-output,.note-callout,.troublehead,.block>p');
+ if(!target||b.type==='checklist'||b.type==='photo') {selected=b.id;renderInspector();renderOutline();return;}
+ selected=b.id;renderInspector();renderOutline();document.querySelectorAll('.block').forEach(x=>x.classList.toggle('active',x===el));
+ const original=target.innerHTML;
+ // Edit the existing text element, preserving its position, dimensions, and styles.
+ target.contentEditable='true';target.dataset.liveEdit='true';target.spellcheck=true;target.classList.add('live-edit');
+ let completed=false;
+ function finish(commit){if(completed)return;completed=true;target.removeAttribute('contenteditable');target.removeAttribute('data-live-edit');target.classList.remove('live-edit');
+ if(commit){b[key]=target.innerText;if(useRich)b[key+'Html']=cleanHtml(target.innerHTML);else delete b[key+'Html'];scheduleRender();}
+ else target.innerHTML=original;
+ debouncePages();renderInspector();renderOutline();
  }
- input.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();finish(false)}else if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();finish(true)}});
- input.addEventListener('blur',()=>finish(true));input.focus();
+ target.addEventListener('keydown',function keydown(e){e.stopPropagation();if(e.key==='Escape'){e.preventDefault();finish(false);target.blur()}else if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();finish(true);target.blur()}},{signal:(()=>{const c=new AbortController();target.addEventListener('blur',()=>{finish(true);c.abort()},{once:true});return c.signal})()});
+ target.focus();const selection=window.getSelection();if(selection){const range=document.createRange();range.selectNodeContents(target);range.collapse(false);selection.removeAllRanges();selection.addRange(range)}
 }
  function moveBlock(a,b){if(!a||a===b)return;const src=guide.blocks.findIndex(x=>x.id===a),dst=guide.blocks.findIndex(x=>x.id===b);if(src<0||dst<0)return;update(()=>{const [x]=guide.blocks.splice(src,1);guide.blocks.splice(guide.blocks.findIndex(x=>x.id===b),0,x)})}
 function renderOutline(){const out=$('#outline');if(!out)return;let n=0;out.innerHTML=guide.blocks.map(b=>{if(['image','text'].includes(b.type))n++;const label=['image','text'].includes(b.type)?'Step '+n:TYPES[b.type][0];return `<button class="navitem ${selected===b.id?'sel':''}" data-outline="${b.id}"><span>${esc(label)}</span><span class="count">≡</span></button>`}).join('')||'<div class="sidehint">Add your first block to begin.</div>';out.querySelectorAll('button').forEach(x=>x.onclick=()=>{selected=x.dataset.outline;renderInspector();document.querySelectorAll('.block').forEach(y=>y.classList.toggle('active',y.dataset.id===selected));document.querySelector(`.block[data-id="${selected}"]`)?.scrollIntoView({behavior:'smooth',block:'center'});renderOutline()})}
 function options(items,value){return items.map(([v,label])=>`<option value="${esc(v)}" ${v===value?'selected':''}>${esc(label)}</option>`).join('')}
 function field(b,key,label,kind='input',opts=null){const v=b[key]??'';return `<div class="field"><label>${esc(label)}</label>${kind==='textarea'?`<textarea data-field="${key}">${esc(v)}</textarea>`:kind==='select'?`<select data-field="${key}">${options(opts,v)}</select>`:`<input data-field="${key}" value="${esc(v)}">`}</div>`}
-function renderInspector(){const box=$('#inspector');if(!box)return;const b=guide.blocks.find(b=>b.id===selected);if(!b){box.innerHTML=`<h2 class="inspector-title">Document settings</h2><p class="inspector-desc">Edit the title, version and revised date here. Click any block to edit it; press Escape to return to document settings.</p>${field(guide,'title','Document title')}${field(guide,'version','Version')}${field(guide,'revised','Revised date')}<div class="field"><label>Accent color</label><input type="color" data-field="accent" value="${esc(guide.accent)}"></div><div class="separator"></div><div class="separator"></div><p class="hint"><b>Shortcuts:</b> Esc — deselect · ⌘/Ctrl+S — save · ⌘/Ctrl+P — export PDF · ⌘/Ctrl+D — duplicate selected block · Delete — remove block · Option/Alt+↑/↓ — move block.</p><p class="hint">Changes save in this browser only. Download a project backup if you need to move it to another device.</p>`;bindFields(box,guide);return}let html=`<h2 class="inspector-title">${TYPES[b.type][0]}</h2><p class="inspector-desc">${TYPES[b.type][2]}</p>`;if(['checklist','heading','troubleshooting','whatif','note'].includes(b.type))html+=field(b,'title','Heading / problem');if(b.type==='note')html+=field(b,'level','Callout type','select',[['info','Info (blue)'],['caution','Be careful (yellow)'],['danger','Do not do (red)']]);if(b.type==='setup'){html+=richField(b,'tools','Required tools / equipment')+field(b,'duration','Estimated time')+richField(b,'summary','Setup summary')}else if(b.type!=='heading'){if(['image','photo'].includes(b.type)){if(b.type==='image')html+=richField(b,'text','Step instructions');html+=`<div class="field"><label>Image</label><input id="imageUpload" type="file" accept="image/*"><div class="btnrow"><button class="btn small" id="pasteImg">Paste from clipboard</button>${b.image?'<button class="btn small" id="clearImg">Remove image</button>':''}</div><div class="hint">Upload or paste screenshots. Images are stored with the guide in your browser.</div></div>`;if(b.type==='image')html+=field(b,'side','Image position','select',[['right','Right'],['left','Left']])+field(b,'ratio','Column proportions','select',[['50','50 / 50'],['60','60 / 40'],['40','40 / 60']]);html+=field(b,'caption','Image caption')}else html+=b.type==='checklist'?richField(b,'text','Checklist items and headings')+'<p class="hint">Use the Heading toolbar control for section titles and bulleted lines for checklist items. Legacy ## AUDIO headings still work.</p>':richField(b,'text','Text / instructions');if(b.type==='checklist')html+=field(b,'columns','Checklist columns','select',[['1','One column'],['2','Two columns']])}html+=`<div class="separator"></div><div class="btnrow"><button class="btn small" id="up">↑ Move up</button><button class="btn small" id="down">↓ Move down</button><button class="btn small" id="duplicate">Duplicate</button><button class="btn small" id="delete" style="color:#bd3f45">Delete</button></div>`;box.innerHTML=html;bindFields(box,b);bindRich(box,b);const file=$('#imageUpload');if(file)file.onchange=async e=>{const f=e.target.files[0];if(f)await loadImage(f,b)};$('#pasteImg')?.addEventListener('click',async()=>{try{const items=await navigator.clipboard.read();let blob;for(const item of items){const type=item.types.find(s=>s.startsWith('image/'));if(type){blob=await item.getType(type);break}}if(!blob)throw Error('No image in clipboard');await loadImage(blob,b)}catch(e){toast('Clipboard image unavailable. Try uploading or Cmd+V.')}});$('#clearImg')?.addEventListener('click',()=>update(()=>b.image='',true));$('#up').onclick=()=>shift(-1);$('#down').onclick=()=>shift(1);$('#duplicate').onclick=()=>{const i=guide.blocks.indexOf(b),copy={...clone(b),id:uid()};update(()=>{guide.blocks.splice(i+1,0,copy);selected=copy.id},true)};$('#delete').onclick=()=>{update(()=>{guide.blocks=guide.blocks.filter(x=>x.id!==b.id);selected=null},true)}}
+function renderInspector(){const box=$('#inspector');if(!box)return;const b=guide.blocks.find(b=>b.id===selected);if(!b){box.innerHTML=`<h2 class="inspector-title">Document settings</h2><p class="inspector-desc">Edit the title, version and revised date here. Click any block to edit it; press Escape to return to document settings.</p>${field(guide,'title','Document title')}${field(guide,'version','Version')}${field(guide,'revised','Revised date')}<div class="field"><label>Accent color</label><input type="color" data-field="accent" value="${esc(guide.accent)}"></div><div class="separator"></div><div class="separator"></div><p class="hint"><b>Shortcuts:</b> Esc — deselect · ⌘/Ctrl+S — save · ⌘/Ctrl+P — export PDF · ⌘/Ctrl+D — duplicate selected block · Delete — remove block · Option/Alt+↑/↓ — move block.</p><p class="hint">Changes save in this browser only. Download a project backup if you need to move it to another device.</p>`;bindFields(box,guide);return}let html=`<h2 class="inspector-title">${TYPES[b.type][0]}</h2><p class="inspector-desc">${TYPES[b.type][2]}</p>`;if(['checklist','heading','troubleshooting','whatif','note'].includes(b.type))html+=field(b,'title','Heading / problem');if(b.type==='note')html+=field(b,'level','Callout type','select',[['info','Info (blue)'],['caution','Be careful (yellow)'],['danger','Do not do (red)']]);if(b.type==='setup'){html+=richField(b,'tools','Required tools / equipment')+field(b,'duration','Estimated time')+richField(b,'summary','Setup summary')}else if(b.type!=='heading'){if(['image','photo'].includes(b.type)){if(b.type==='image')html+=richField(b,'text','Step instructions');html+=`<div class="field"><label>Image</label><input id="imageUpload" type="file" accept="image/*"><div class="btnrow"><button class="btn small" id="pasteImg">Paste from clipboard</button>${b.image?'<button class="btn small" id="clearImg">Remove image</button>':''}</div><div class="hint">Upload or paste screenshots. Images are stored with the guide in your browser.</div></div>`;if(b.type==='image')html+=field(b,'side','Image position','select',[['right','Right'],['left','Left']])+field(b,'ratio','Column proportions','select',[['50','50 / 50'],['60','60 / 40'],['40','40 / 60']]);html+=field(b,'caption','Image caption')}else html+=b.type==='checklist'?richField(b,'text','Checklist items and headings')+'<p class="hint">Use the Heading toolbar control for section titles and bulleted lines for checklist items. Legacy ## AUDIO headings still work.</p>':richField(b,'text','Text / instructions');if(b.type==='checklist')html+=field(b,'columns','Checklist columns','select',[['1','One column'],['2','Two columns']])}html+=`<div class="separator"></div><div class="btnrow"><button class="btn small" id="up">↑ Move up</button><button class="btn small" id="down">↓ Move down</button><button class="btn small" id="duplicate">Duplicate</button><button class="btn small" id="delete" style="color:#bd3f45">Delete</button></div>`;box.innerHTML=html;bindFields(box,b);bindRich(box,b);const file=$('#imageUpload');if(file)file.onchange=async e=>{const f=e.target.files[0];if(f)await loadImage(f,b)};$('#pasteImg')?.addEventListener('click',()=>pasteImageToBlock(b,null));$('#clearImg')?.addEventListener('click',()=>update(()=>b.image='',true));$('#up').onclick=()=>shift(-1);$('#down').onclick=()=>shift(1);$('#duplicate').onclick=()=>{const i=guide.blocks.indexOf(b),copy={...clone(b),id:uid()};update(()=>{guide.blocks.splice(i+1,0,copy);selected=copy.id},true)};$('#delete').onclick=()=>{update(()=>{guide.blocks=guide.blocks.filter(x=>x.id!==b.id);selected=null},true)}}
 function bindFields(root,obj){root.querySelectorAll('[data-field]').forEach(el=>{el.addEventListener('input',()=>{obj[el.dataset.field]=el.value;if(el.dataset.field==='accent')document.documentElement.style.setProperty('--blue',el.value);scheduleRender();debouncePages();if(el.dataset.field==='title')$('#documentName').value=guide.title});el.addEventListener('change',()=>{if(el.tagName==='SELECT')fitPages()})})}
 function bindRich(root,b){
  let activeEditor=null;
@@ -197,10 +200,130 @@ function exportFile(name,data,type){const blob=new Blob([data],{type}),url=URL.c
 const slug=s=>s.replace(/[^a-z0-9\-_ ]/gi,'').trim().replace(/\s+/g,'-').toLowerCase()||'guide';
 function backup(){exportFile(slug(guide.title)+'.playbook.json',JSON.stringify({format:'playbook-studio',version:1,guide},null,2),'application/json');toast('Project backup downloaded')}
 function renderHome(){view='home';document.documentElement.style.removeProperty('--blue');$('#app').innerHTML=`<div class="topbar"><div class="brand"><span class="brand-mark">▤</span>Playbook Studio</div><div class="spacer"></div><button class="btn" id="importPdf">Import Canva PDF (beta)</button><button class="btn" id="import">Import project</button><button class="btn primary" id="new">+ New guide</button><input class="hidden" id="fileImport" type="file" accept=".json,.playbook.json,application/json"><input class="hidden" id="pdfImport" type="file" accept=".pdf,application/pdf"></div><main class="home"><div class="homeheader"><div><h1>Your guides</h1><p>Build clear, consistent instructions. Saved locally in this browser.</p></div></div><div class="guidegrid" id="guidegrid"></div><p class="hint">Everything is stored on this device. Clearing Safari website data or using private browsing may erase guides—export backups regularly.</p></main>`;const out=$('#guidegrid');out.innerHTML=guides.sort((a,b)=>b.updated-a.updated).map(g=>`<div class="guidecard" data-g="${g.id}"><div class="mini">▤</div><h2>${esc(g.title)}</h2><p>${g.blocks.length} blocks · Version ${esc(g.version)}</p><small>Last edited ${new Date(g.updated).toLocaleDateString()}</small><div class="btnrow"><button class="btn small" data-duplicate="${g.id}">Duplicate</button><button class="btn small" data-remove="${g.id}">Delete</button></div></div>`).join('')||'<div class="empty">No guides yet. Create one to get started.</div>';out.querySelectorAll('.guidecard').forEach(el=>el.onclick=()=>editGuide(el.dataset.g));out.querySelectorAll('[data-duplicate]').forEach(el=>el.onclick=async e=>{e.stopPropagation();const src=guides.find(x=>x.id===el.dataset.duplicate),copy=clone(src);copy.id=uid();copy.title+=' (Copy)';copy.updated=Date.now();await save(copy);guides=await allGuides();renderHome()});out.querySelectorAll('[data-remove]').forEach(el=>el.onclick=async e=>{e.stopPropagation();if(!confirm('Delete this guide from this browser?'))return;await removeGuide(el.dataset.remove);guides=await allGuides();renderHome()});$('#new').onclick=async()=>{const name=prompt('Guide title','Untitled Guide');if(name===null)return;const g=newGuide(name||'Untitled Guide');await save(g);guides=await allGuides();editGuide(g.id)};$('#import').onclick=()=>$('#fileImport').click();$('#fileImport').onchange=importGuide;$('#importPdf').onclick=()=>$('#pdfImport').click();$('#pdfImport').onchange=importPdf}
-async function importPdf(e){const f=e.target.files?.[0];if(!f)return;try{toast('Reading PDF…');if(!window.pdfjsLib){await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';sc.onload=resolve;sc.onerror=reject;document.head.appendChild(sc)})}const lib=window.pdfjsLib;lib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';const pdf=await lib.getDocument({data:await f.arrayBuffer()}).promise;const g=newGuide(f.name.replace(/\.pdf$/i,''));let steps=0;for(let p=1;p<=Math.min(pdf.numPages,100);p++){const page=await pdf.getPage(p);const tc=await page.getTextContent();const fragments=tc.items.filter(x=>typeof x.str==='string'&&x.str.trim()).map(x=>({s:x.str.trim(),y:Math.round(x.transform[5]/7)*7}));const rows=[];for(const fragment of fragments){const last=rows[rows.length-1];if(last&&last.y===fragment.y)last.s+=' '+fragment.s;else rows.push({...fragment})}rows.sort((a,b)=>b.y-a.y);let current=null;let pageHadContent=false;for(const row of rows){const t=row.s.trim();if(!t||/^Version\s+[\d.]+\s*[|•]/i.test(t)||/^Page\s+\d+/i.test(t))continue;if(!pageHadContent&&p===1&&t.length<95&&!/^(STEP|REQUIRED|SETUP|CHECKPOINT|TROUBLESHOOTING|AUDIO|VIDEO|LIGHTING|RECORDING)/i.test(t)){g.title=t;pageHadContent=true;continue}pageHadContent=true;const match=t.match(/^STEP\s+\d+\b\s*(.*)/i);if(match){current={id:uid(),type:'text',text:match[1]||''};g.blocks.push(current);steps++;continue}if(/^CHECKPOINT\b/i.test(t)){current={id:uid(),type:'checkpoint',text:''};g.blocks.push(current);continue}if(/^TROUBLESHOOTING\b/i.test(t)){current={id:uid(),type:'troubleshooting',title:'Troubleshooting',text:''};g.blocks.push(current);continue}if(/^(REQUIRED TOOLS|REQUIRED EQUIPMENT|SETUP SUMMARY)$/i.test(t)){current={id:uid(),type:'text',text:t};g.blocks.push(current);continue}if(!current){current={id:uid(),type:'text',text:''};g.blocks.push(current)}current.text+=(current.text?'\n':'')+t}const viewport=page.getViewport({scale:1});const canvas=document.createElement('canvas');const scale=Math.min(1.1,960/viewport.width);const size=page.getViewport({scale});canvas.width=Math.round(size.width);canvas.height=Math.round(size.height);await page.render({canvasContext:canvas.getContext('2d'),viewport:size}).promise;g.blocks.push({id:uid(),type:'photo',caption:'Original PDF page '+p+' (reference for recovering images and layout)',image:canvas.toDataURL('image/jpeg',0.75)});}g.updated=Date.now();await save(g);guides=await allGuides();toast('Imported '+pdf.numPages+' PDF pages; review the reconstructed text and page images');editGuide(g.id)}catch(err){toast('PDF import failed. Check your connection and try a standard PDF.');console.error(err)}finally{e.target.value=''}}
- async function importGuide(e){try{const raw=JSON.parse(await e.target.files[0].text());if(raw.format!=='playbook-studio'||!raw.guide||!Array.isArray(raw.guide.blocks))throw Error('Not a Playbook Studio backup');const g=raw.guide;g.id=uid();g.updated=Date.now();g.blocks.forEach(b=>b.id=uid());await save(g);guides=await allGuides();toast('Guide imported');editGuide(g.id)}catch(err){toast('Unable to import this project file')}}
+function pdfImageRegions(page,ops){
+ const O=pdfjsLib.OPS,stack=[];let matrix=[1,0,0,1,0,0],rects=[];
+ const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
+ for(let i=0;i<ops.fnArray.length;i++){
+  const op=ops.fnArray[i],args=ops.argsArray[i];
+  if(op===O.save)stack.push([...matrix]);
+  else if(op===O.restore){if(stack.length)matrix=stack.pop()}
+  else if(op===O.transform)matrix=mul(matrix,args);
+  else if([O.paintImageXObject,O.paintInlineImageXObject,O.paintJpegXObject,O.paintImageXObjectRepeat].includes(op)){
+   const p=[[0,0],[1,0],[0,1],[1,1]].map(([x,y])=>[matrix[0]*x+matrix[2]*y+matrix[4],matrix[1]*x+matrix[3]*y+matrix[5]]);
+   const x=Math.min(...p.map(v=>v[0])),y=Math.min(...p.map(v=>v[1]));
+   const w=Math.max(...p.map(v=>v[0]))-x,h=Math.max(...p.map(v=>v[1]))-y;
+   // Ignore tiny icons/logo and large background photos.
+   if(w>95&&h>52&&w<page.view[2]*.8&&h<page.view[3]*.7)rects.push({x,y:page.view[3]-y-h,w,h});
+  }
+ }
+ return rects.filter((r,i)=>!rects.some((q,j)=>j<i&&Math.abs(r.x-q.x)<6&&Math.abs(r.y-q.y)<6&&Math.abs(r.w-q.w)<6));
+}
+function pdfBulletHtml(rows){
+ let html='',list=false;
+ for(const row of rows){
+  const raw=row.s.trim();if(!raw)continue;
+  const bullet=/^[•●▪◦‣]\s*/.test(raw);
+  const content=esc(raw.replace(/^[•●▪◦‣]\s*/,''));
+  if(bullet&&!list){html+='<ul>';list=true}
+  if(!bullet&&list){html+='</ul>';list=false}
+  html+=bullet?'<li>'+content+'</li>':'<p>'+content+'</p>';
+ }
+ return html+(list?'</ul>':'');
+}
+async function importPdf(e){
+ const file=e.target.files?.[0];if(!file)return;
+ try{
+  toast('Reading PDF…');
+  if(!window.pdfjsLib)await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';sc.onload=resolve;sc.onerror=reject;document.head.appendChild(sc)});
+  const lib=window.pdfjsLib;lib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf=await lib.getDocument({data:await file.arrayBuffer()}).promise,g=newGuide(file.name.replace(/\.pdf$/i,''));
+  let shots=0,bulletCount=0;
+  for(let p=1;p<=Math.min(pdf.numPages,100);p++){
+   const page=await pdf.getPage(p),tc=await page.getTextContent();
+   const items=tc.items.filter(x=>x.str&&x.str.trim()).map(x=>({s:x.str.trim(),x:x.transform[4],y:x.transform[5],size:Math.abs(x.transform[0]||12)}));
+   items.sort((a,b)=>b.y-a.y||a.x-b.x);
+   const rows=[];
+   for(const t of items){const prev=rows[rows.length-1];if(prev&&Math.abs(prev.y-t.y)<3&&t.x>=prev.x){prev.s+=' '+t.s;prev.xMin=Math.min(prev.xMin,t.x)}else rows.push({...t,xMin:t.x})}
+   const blocks=[],ranges=[];let current=null;
+   function start(type,title='',y=0){current={id:uid(),type,text:'',title};blocks.push(current);ranges.push({block:current,y});return current}
+   let headFound=false;
+   for(const row of rows){
+    const str=row.s.trim();
+    if(!str||/^(Version\s+[\d.]+|Page\s+\d+\s*(of\s+\d+)?)/i.test(str))continue;
+    if(!headFound&&p===1&&row.y>page.view[3]*.85&&str.length<95&&!/^(STEP|REQUIRED|SETUP|CHECKPOINT|TROUBLESHOOTING)/i.test(str)){g.title=str;headFound=true;continue}
+    if(/^STEP\s+\d+\b/i.test(str)){start('text','',row.y);continue}
+    if(/^CHECKPOINT\b/i.test(str)){start('checkpoint','',row.y);continue}
+    if(/^TROUBLESHOOTING\b/i.test(str)){start('troubleshooting','Problem',row.y);continue}
+    if(/^(REQUIRED TOOLS|REQUIRED EQUIPMENT|SETUP SUMMARY)$/i.test(str)){start('text','',row.y);current.text=str;continue}
+    if(!current)start('text','',row.y);
+    const bullet=/^[•●▪◦‣]\s*/.test(str)||(/^[-–]\s/.test(str));
+    let line=str;
+    if(bullet){line='• '+str.replace(/^[•●▪◦‣\-–]\s*/,'');bulletCount++}
+    current.text+=(current.text?'\n':'')+line;
+    const html=current.text.split('\n').map(x=>({s:x}));current.textHtml=pdfBulletHtml(html);
+   }
+   const ops=await page.getOperatorList(),regions=pdfImageRegions(page,ops).sort((a,b)=>a.y-b.y);
+   // Render only if image regions exist, instead of storing a heavyweight image of every page.
+   if(regions.length){
+    const scale=1.6,view=page.getViewport({scale});const canvas=document.createElement('canvas');canvas.width=Math.round(view.width);canvas.height=Math.round(view.height);
+    await page.render({canvasContext:canvas.getContext('2d'),viewport:view}).promise;
+    for(const rect of regions){
+     const sx=Math.max(0,Math.floor(rect.x*scale)),sy=Math.max(0,Math.floor(rect.y*scale)),sw=Math.min(canvas.width-sx,Math.ceil(rect.w*scale)),sh=Math.min(canvas.height-sy,Math.ceil(rect.h*scale));
+     if(sw<70||sh<40)continue;
+     const crop=document.createElement('canvas');crop.width=sw;crop.height=sh;crop.getContext('2d').drawImage(canvas,sx,sy,sw,sh,0,0,sw,sh);
+     const image=crop.toDataURL('image/jpeg',.82);
+     // Associate picture with the step whose vertical region is closest to its midpoint.
+     const pdfMid=page.view[3]-(rect.y+rect.h/2);
+     const candidates=ranges.filter(x=>x.block.type==='text');
+     let match=null,distance=Infinity;
+     for(const x of candidates){const delta=Math.abs(x.y-pdfMid);if(delta<distance){match=x.block;distance=delta}}
+     if(match&&distance<125&&!match.image){match.type='image';match.image=image;match.side='right';match.ratio='50';shots++}
+     else{blocks.push({id:uid(),type:'photo',image,caption:'Imported screenshot from page '+p});shots++}
+    }
+   }
+   g.blocks.push(...blocks);
+  }
+  if(!g.blocks.length)throw Error('No text/images identified');
+  g.updated=Date.now();await save(g);guides=await allGuides();editGuide(g.id);
+  toast('Imported '+shots+' screenshots and preserved '+bulletCount+' bullet items. Review layout.');
+ }catch(error){console.error(error);toast('PDF import failed: '+(error?.message||'unknown error'))}
+ finally{e.target.value=''}
+}
+async function importGuide(e){try{const raw=JSON.parse(await e.target.files[0].text());if(raw.format!=='playbook-studio'||!raw.guide||!Array.isArray(raw.guide.blocks))throw Error('Not a Playbook Studio backup');const g=raw.guide;g.id=uid();g.updated=Date.now();g.blocks.forEach(b=>b.id=uid());await save(g);guides=await allGuides();toast('Guide imported');editGuide(g.id)}catch(err){toast('Unable to import this project file')}}
 function editGuide(id){guide=guides.find(g=>g.id===id);if(!guide)return;for(const b of guide.blocks){if((b.type==='image'||b.type==='text')&&(b.note||b.noteHtml)){const legacy=b.noteHtml?cleanHtml(b.noteHtml):'<p>'+nl(b.note)+'</p>';const base=b.textHtml?cleanHtml(b.textHtml):'<p>'+nl(b.text||'')+'</p>';b.textHtml=base+'<p><mark>'+legacy.replace(/^<p>|<\/p>$/g,'')+'</mark></p>';b.text=(b.text||'')+'\n'+(b.note||'');delete b.note;delete b.noteHtml}}selected=null;view='editor';document.documentElement.style.setProperty('--blue',guide.accent||'#177da1');$('#app').innerHTML=`<div class="topbar"><button class="iconbtn" id="back" title="Back to library">←</button><div class="brand"><span class="brand-mark">▤</span><span class="desktop-label">Playbook Studio</span></div><input class="docname" id="documentName" aria-label="Document title" value="${esc(guide.title)}"><span class="status" id="saveStatus">Saved locally</span><div class="spacer"></div><button class="btn mobile-nav" id="toggleBlocks">+ Blocks</button><button class="btn mobile-nav" id="toggleProperties">Edit</button><button class="btn" id="deselect" title="Deselect block (Esc)">Deselect</button><button class="btn" id="backup"><span class="desktop-label">Backup</span> ↓</button><button class="btn primary" id="pdf"><span class="desktop-label">Export </span>PDF</button></div><div class="layout"><aside class="sidebar" id="sidebar"><h3>Add blocks</h3>${Object.entries(TYPES).map(([key,v])=>`<button class="lib" data-add="${key}"><span class="glyph">${v[1]}</span><span><div class="lbl">${v[0]}</div><div class="desc">${v[2]}</div></span></button>`).join('')}<div class="separator"></div><h3>Document outline</h3><button class="navitem" id="documentSettings">⚙ Document settings</button><div id="outline"></div><div class="sidehint">Tip: Drag cards within the pages to reorder. Click a card to edit its contents.</div></aside><main class="canvas-wrap"><div class="canvasheading"><span>US Letter · 8.5 × 11 in</span><span id="pagecount">1 page</span></div><div id="papers"></div></main><aside class="rightbar" id="rightbar"><div id="inspector"></div></aside></div>`;$('#back').onclick=async()=>{clearTimeout(saveTimer);await save(guide);guides=await allGuides();renderHome()};$('#documentName').oninput=e=>{guide.title=e.target.value;scheduleRender();debouncePages()};$('#backup').onclick=backup;$('#pdf').onclick=()=>{selected=null;fitPages();window.print()};document.querySelectorAll('[data-add]').forEach(el=>el.onclick=()=>addBlock(el.dataset.add));$('#deselect').onclick=deselectBlock;$('#documentSettings').onclick=deselectBlock;$('#papers').addEventListener('click',e=>{if(!e.target.closest('.block'))deselectBlock()});$('#toggleBlocks').onclick=()=>{$('#sidebar').classList.toggle('show');$('#rightbar').classList.remove('show')};$('#toggleProperties').onclick=()=>{$('#rightbar').classList.toggle('show');$('#sidebar').classList.remove('show')};renderOutline();renderInspector();fitPages()}
-window.addEventListener('paste',async e=>{if(view!=='editor'||!selected)return;const b=guide.blocks.find(x=>x.id===selected);if(!b||!['image','photo'].includes(b.type))return;const blob=Array.from(e.clipboardData?.files||[]).find(f=>f.type.startsWith('image/'));if(blob){e.preventDefault();await loadImage(blob,b)}});
+function imageUrlFromHtml(html){const doc=new DOMParser().parseFromString(html||'','text/html');const img=doc.querySelector('img[src],img[data-src]');const src=img?.getAttribute('src')||img?.getAttribute('data-src');if(src&&(/^(data:image\/|https?:\/\/|blob:)/i).test(src))return src;return null}
+async function imageFromClipboardData(data){
+ const file=Array.from(data?.files||[]).find(x=>x.type.startsWith('image/'));if(file)return file;
+ const html=data?.getData?.('text/html');const src=imageUrlFromHtml(html);
+ if(src)return await imageBlobFromUrl(src);
+ return null;
+}
+async function imageBlobFromUrl(src){
+ if(src.startsWith('data:image/')){const res=await fetch(src);return await res.blob()}
+ if(src.startsWith('blob:')||/^https?:\/\//i.test(src)){const res=await fetch(src,{mode:'cors'});if(!res.ok)throw Error('Image URL could not be loaded');const blob=await res.blob();if(!blob.type.startsWith('image/'))throw Error('Clipboard URL is not a direct image');return blob}
+ throw Error('Unsupported image source');
+}
+async function pasteImageToBlock(b,data){
+ try{
+  let image=await imageFromClipboardData(data);
+  if(!image&&navigator.clipboard?.read){const items=await navigator.clipboard.read();for(const item of items){const t=item.types.find(x=>x.startsWith('image/'));if(t){image=await item.getType(t);break}if(item.types.includes('text/html')){const html=await(await item.getType('text/html')).text();const src=imageUrlFromHtml(html);if(src){image=await imageBlobFromUrl(src);break}}}}
+  if(!image){toast('No pasteable image found. In Canva, download the image as PNG or copy a screenshot.');return}
+  await loadImage(image,b)
+ }catch(error){console.warn('Clipboard image unavailable:',error);toast('Canva image blocked by clipboard/CORS. Use a screenshot or exported PNG instead.')}
+}
+window.addEventListener('paste',async e=>{
+ if(view!=='editor'||!selected)return;
+ const b=guide.blocks.find(x=>x.id===selected);
+ if(!b||!['image','photo'].includes(b.type))return;
+ const target=e.target;
+ if(target?.closest?.('input,textarea,[contenteditable="true"]'))return;
+ const types=Array.from(e.clipboardData?.types||[]);
+ if(!types.some(t=>t.startsWith('image/')||t==='text/html')&&!Array.from(e.clipboardData?.files||[]).some(f=>f.type.startsWith('image/')))return;
+ const src=types.includes('text/html')?imageUrlFromHtml(e.clipboardData.getData('text/html')):null;
+ const direct=Array.from(e.clipboardData?.files||[]).some(x=>x.type.startsWith('image/'));
+ if(!src&&!direct)return;
+ e.preventDefault();await pasteImageToBlock(b,e.clipboardData)
+});
 window.addEventListener('keydown',e=>{if(view!=='editor'||!guide)return;const target=e.target;const typing=target?.matches?.('input,textarea,select,[contenteditable="true"]')||target?.closest?.('[contenteditable="true"]');const mod=e.metaKey||e.ctrlKey;const key=e.key.toLowerCase();if(e.key==='Escape'){if(typing&&target.blur)target.blur();deselectBlock();return}if(mod&&key==='s'){e.preventDefault();clearTimeout(saveTimer);save(guide).then(()=>{const el=$('#saveStatus');if(el)el.textContent='Saved locally';toast('Saved locally')});return}if(mod&&key==='p'){e.preventDefault();deselectBlock();fitPages();window.print();return}if(typing)return;if(mod&&key==='d'&&selected){e.preventDefault();duplicateSelected();return}if((e.key==='Delete'||e.key==='Backspace')&&selected){e.preventDefault();deleteSelected();return}if(e.altKey&&e.key==='ArrowUp'&&selected){e.preventDefault();shift(-1);return}if(e.altKey&&e.key==='ArrowDown'&&selected){e.preventDefault();shift(1);return}});
 window.addEventListener('beforeunload' ,()=>{if(guide&&view==='editor')save(guide)});
 (async()=>{try{await openDB();guides=await allGuides();if(!guides.length){const g=newGuide('Recording & Uploading a Service',true);await save(g);guides=[g]}}catch(e){document.body.innerHTML='<main style="padding:40px">Browser storage is unavailable. Please use a normal Safari window rather than private mode.</main>';return}renderHome()})();
