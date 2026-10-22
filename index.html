@@ -241,6 +241,28 @@
 .step-image-slot .crop-frame[style*="auto"]{height:auto!important;max-height:none!important}
 .step-image-slot .crop-frame[style*="auto"] .stepimg{height:auto!important;object-fit:contain!important}
 @media print{.step-image-slot .crop-frame .stepimg{height:100%!important;max-height:none!important;object-fit:cover!important}}
+/* Keep each crop's real aspect ratio; avoid the old max-height constraint. */
+.step-image-slot .crop-frame{height:auto!important;max-height:none!important;max-width:260px;aspect-ratio:4 / 3;overflow:hidden}
+.step-image-slot .crop-frame .stepimg{position:absolute!important;inset:0;width:100%!important;height:100%!important;object-fit:cover!important}
+.step-image-slot .crop-frame[style*="auto"] .stepimg{position:static!important;height:auto!important;object-fit:contain!important}
+.image-context-menu{position:fixed;z-index:2000;background:#fff;border:1px solid #d8e3e8;border-radius:9px;padding:5px;min-width:175px;box-shadow:0 8px 26px #142f3a28}
+.image-context-menu button{display:block;width:100%;text-align:left;border:0;background:transparent;border-radius:5px;padding:8px 11px;cursor:pointer;color:#263e49}
+.image-context-menu button:hover{background:#eaf5fa}
+.crop-dialog{position:fixed;inset:0;z-index:2100;background:#071d2d99;display:flex;align-items:center;justify-content:center;padding:16px}
+.crop-panel{background:#fff;border-radius:12px;padding:16px;width:min(540px,96vw);max-height:92vh;overflow:auto;box-shadow:0 15px 55px #0005}
+.crop-header,.crop-footer{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.crop-header button{border:0;background:transparent;font-size:23px;cursor:pointer}
+.crop-preset-row{display:flex;flex-wrap:wrap;gap:6px;margin:15px 0}
+.crop-preset-row button,.crop-footer button{border:1px solid #ccdce4;background:#fff;border-radius:6px;padding:7px 10px;cursor:pointer}
+.crop-preset-row button.chosen,.crop-footer [data-save]{background:#177da1;color:white;border-color:#177da1}
+.crop-stage{background:#e7ecef;border-radius:8px;padding:15px;display:flex;align-items:center;justify-content:center;min-height:260px}
+.crop-preview{position:relative;width:min(100%,380px);max-height:380px;overflow:hidden;touch-action:none;cursor:grab;background:#d8e1e5}
+.crop-preview:active{cursor:grabbing}
+.crop-preview img{position:absolute;width:100%;height:100%;inset:0;object-fit:cover;pointer-events:none;user-select:none}
+.crop-preview.original{aspect-ratio:auto!important;max-height:380px}
+.crop-preview.original img{position:static;height:auto;object-fit:contain}
+.crop-help{font-size:12px;color:#607684;margin:12px 0}
+@media print{.image-context-menu,.crop-dialog{display:none!important}}
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
 <script>
@@ -262,7 +284,7 @@ function bullets(t){return `<ul>${String(t||'').split('\n').filter(s=>s.trim()).
 function rich(b,key='text'){return b[key+'Html']?`<div class="rich-output">${cleanHtml(b[key+'Html'])}</div>`:`<p>${nl(b[key]||'')}</p>`}
 function cleanHtml(input){const doc=new DOMParser().parseFromString('<div>'+String(input||'')+'</div>','text/html');const allowed=new Set(['B','STRONG','I','EM','U','UL','OL','LI','P','DIV','BR','KBD','H3','MARK','SPAN']);function walk(node){if(node.nodeType===3)return esc(node.textContent);if(node.nodeType!==1)return '';let inside=Array.from(node.childNodes).map(walk).join('');let tag=node.tagName.toLowerCase();return allowed.has(node.tagName)?(tag==='mark'?`<mark class="note-${['caution','danger'].find(v=>node.classList.contains('note-'+v))||'info'}">${inside}</mark>`:tag==='span'&&node.classList.contains('menu-path')?`<span class="menu-path">${inside}</span>`:`<${tag}>${inside}</${tag}>`):inside}const out=Array.from(doc.body.firstChild.childNodes).map(walk).join('');return out.replace(/(?:<br><\/br>)/gi,'<br>').replace(/(?:<br>\s*){3,}/gi,'<br><br>').replace(/<(p|div)>\s*(?:<br\s*\/?>|&nbsp;|\s)*<\/\1>/gi,'')}
 function richField(b,key,label){return `<div class="field"><label>${esc(label)}</label><div class="rich-toolbar"><button type="button" data-cmd="bold" title="Bold"><b>B</b></button><button type="button" data-cmd="italic" title="Italic"><i>I</i></button><button type="button" data-cmd="underline" title="Underline"><u>U</u></button><button type="button" data-cmd="insertUnorderedList" title="Bullets">• List</button><button type="button" data-cmd="insertOrderedList" title="Numbered list">1. List</button><button type="button" data-cmd="indent" title="Nest selected list item (Tab)">→ Indent</button><button type="button" data-cmd="outdent" title="Move list item up a level (Shift+Tab)">← Outdent</button><button type="button" data-cmd="formatBlock" data-value="h3" title="Section heading within the text">Heading</button><button type="button" data-cmd="shortcut" title="Style selected text as a keyboard key or website button">⌘ Button</button><button type="button" data-cmd="menupath" title="Format a selected menu/file path">› Path</button><button type="button" data-cmd="inlinenote" data-level="info" title="Format selected text as an information note">ⓘ Info</button><button type="button" data-cmd="inlinenote" data-level="caution" title="Format selected text as a caution">⚠ Caution</button><button type="button" data-cmd="inlinenote" data-level="danger" title="Format selected text as a danger warning">⛔ Danger</button></div><div class="rich-edit" contenteditable="true" data-rich="${key}" role="textbox" aria-label="${esc(label)}">${b[key+'Html']?cleanHtml(b[key+'Html']):esc(b[key]||'').replace(/\n/g,'<br>')}</div></div>`}
-function imageSlot(b){const ratios={'auto':'auto','square':'1 / 1','landscape':'4 / 3','wide':'16 / 9','portrait':'3 / 4'};const ratio=ratios[b.cropRatio]||'4 / 3';const x=Math.max(0,Math.min(100,Number(b.cropX??50))),y=Math.max(0,Math.min(100,Number(b.cropY??50)));return b.image?`<div class="crop-frame" style="aspect-ratio:${ratio};max-height:190px"><img class="stepimg" src="${b.image}" alt="Step image" style="object-position:${x}% ${y}%"></div>`:`<div class="image-placeholder">＋<br>Upload a screenshot</div>`}
+function imageSlot(b){const ratios={'auto':'auto','square':'1 / 1','landscape':'4 / 3','wide':'16 / 9','portrait':'3 / 4'};const ratio=ratios[b.cropRatio]||'4 / 3';const x=Math.max(0,Math.min(100,Number(b.cropX??50))),y=Math.max(0,Math.min(100,Number(b.cropY??50)));return b.image?`<div class="crop-frame" style="aspect-ratio:${ratio}"><img class="stepimg" src="${b.image}" alt="Step image" style="object-position:${x}% ${y}%"></div>`:`<div class="image-placeholder">＋<br>Upload a screenshot</div>`}
 function checklistContent(b){if(b.textHtml){const doc=new DOMParser().parseFromString('<div>'+cleanHtml(b.textHtml)+'</div>','text/html');let output='';for(const n of doc.body.firstChild.children){if(n.tagName==='H3'){output+='<div class="checksection">'+n.innerHTML+'</div>';continue}if(n.tagName==='UL'||n.tagName==='OL'){for(const li of n.querySelectorAll('li'))output+='<div class="checkrow"><span class="checksq"></span><span>'+li.innerHTML+'</span></div>';continue}const t=n.textContent.trim();if(t.startsWith('## '))output+='<div class="checksection">'+esc(t.slice(3))+'</div>';else if(t)output+='<div class="checkrow"><span class="checksq"></span><span>'+n.innerHTML+'</span></div>'}return output}const rows=String(b.text||'').split('\n').map(v=>v.trim()).filter(Boolean);return rows.map(line=>{if(/^#{1,3}\s+/.test(line))return '<div class="checksection">'+esc(line.replace(/^#{1,3}\s+/,''))+'</div>';return '<div class="checkrow"><span class="checksq"></span><span>'+esc(line.replace(/^(?:- |• )/,''))+'</span></div>'}).join('')}
  function issueEntries(b){return Array.isArray(b.entries)&&b.entries.length?b.entries:[{title:b.title||'Problem',text:b.text||'',textHtml:b.textHtml||''}]}
 function issuePreview(b){return issueEntries(b).map(e=>`<section class="issue-entry"><div class="troublehead">${esc(e.title||'Untitled')}</div>${rich(e)}</section>`).join('')}
@@ -445,6 +467,30 @@ function bindInlineModuleActions(){
   });
  });
 }
+function showImageContextMenu(e,b){
+ e.preventDefault();e.stopPropagation();document.querySelector('#imageContextMenu')?.remove();
+ const menu=document.createElement('div');menu.id='imageContextMenu';menu.className='image-context-menu';
+ menu.innerHTML='<button data-action="crop">Crop image…</button><button data-action="replace">Replace image…</button><button data-action="original">Reset to original</button>';
+ document.body.appendChild(menu);menu.style.left=Math.max(8,Math.min(e.clientX,innerWidth-menu.offsetWidth-10))+'px';menu.style.top=Math.max(8,Math.min(e.clientY,innerHeight-menu.offsetHeight-10))+'px';
+ menu.addEventListener('click',ev=>{const action=ev.target.closest('[data-action]')?.dataset.action;menu.remove();if(action==='crop')openCropEditor(b);if(action==='replace')openImagePicker(b);if(action==='original')update(()=>{b.cropRatio='auto';b.cropX=50;b.cropY=50},true)});
+ const dismiss=ev=>{if(!menu.contains(ev.target)){menu.remove();document.removeEventListener('pointerdown',dismiss,true)}};setTimeout(()=>document.addEventListener('pointerdown',dismiss,true),0);
+}
+function openCropEditor(b){
+ document.querySelector('#cropDialog')?.remove();
+ let ratio=b.cropRatio||'landscape',x=Number(b.cropX??50),y=Number(b.cropY??50);
+ const modal=document.createElement('div');modal.id='cropDialog';modal.className='crop-dialog';
+ modal.innerHTML='<div class="crop-panel" role="dialog" aria-modal="true" aria-label="Crop image"><div class="crop-header"><strong>Crop image</strong><button type="button" data-close aria-label="Close crop editor">×</button></div><div class="crop-preset-row">'+[['auto','Original'],['square','1:1'],['landscape','4:3'],['wide','16:9'],['portrait','3:4']].map(([v,t])=>'<button type="button" data-ratio="'+v+'">'+t+'</button>').join('')+'</div><div class="crop-stage"><div class="crop-preview"><img draggable="false" alt="Crop preview"></div></div><p class="crop-help">Drag the photo inside the frame to position the crop.</p><div class="crop-footer"><button data-cancel>Cancel</button><button data-save>Apply crop</button></div></div>';
+ document.body.appendChild(modal);const panel=modal.querySelector('.crop-panel'),frame=panel.querySelector('.crop-preview'),img=frame.querySelector('img');img.src=b.image;
+ const ratios={auto:'auto',square:'1 / 1',landscape:'4 / 3',wide:'16 / 9',portrait:'3 / 4'};
+ function draw(){frame.style.aspectRatio=ratios[ratio];frame.classList.toggle('original',ratio==='auto');img.style.objectPosition=x+'% '+y+'%';panel.querySelectorAll('[data-ratio]').forEach(btn=>btn.classList.toggle('chosen',btn.dataset.ratio===ratio))}
+ panel.querySelectorAll('[data-ratio]').forEach(btn=>btn.onclick=()=>{ratio=btn.dataset.ratio;draw()});
+ let start=null;frame.addEventListener('pointerdown',ev=>{if(ratio==='auto')return;start={cx:ev.clientX,cy:ev.clientY,x,y};frame.setPointerCapture(ev.pointerId)});
+ frame.addEventListener('pointermove',ev=>{if(!start)return;const fw=frame.clientWidth,fh=frame.clientHeight;const natural=img.naturalWidth/img.naturalHeight,display=fw/fh;const spareX=natural>display?fw*(natural/display-1):0,spareY=natural<display?fh*(display/natural-1):0;if(spareX)x=Math.max(0,Math.min(100,start.x-(ev.clientX-start.cx)/spareX*100));if(spareY)y=Math.max(0,Math.min(100,start.y-(ev.clientY-start.cy)/spareY*100));draw()});
+ frame.addEventListener('pointerup',()=>start=null);frame.addEventListener('pointercancel',()=>start=null);
+ const close=()=>modal.remove();panel.querySelector('[data-close]').onclick=close;panel.querySelector('[data-cancel]').onclick=close;modal.addEventListener('mousedown',e=>{if(e.target===modal)close()});
+ panel.querySelector('[data-save]').onclick=()=>{update(()=>{b.cropRatio=ratio;b.cropX=Math.round(x);b.cropY=Math.round(y)},true);close()};
+ draw();
+}
 function openImagePicker(block){
  if(!block||!['image','photo'].includes(block.type))return;
  let picker=document.querySelector('#canvasImagePicker');
@@ -457,7 +503,7 @@ function bindBlocks(){bindDirectText();bindInlineModuleActions();document.queryS
  if(block&&['image','photo'].includes(block.type)){
   const target=el.querySelector('.image-placeholder,.stepimg');
   if(target){target.setAttribute('role','button');target.setAttribute('tabindex','0');target.setAttribute('aria-label',block.image?'Replace image':'Upload image');target.setAttribute('title',block.image?'Click to replace image':'Click to upload an image');
-   target.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openImagePicker(block)});
+   target.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openImagePicker(block)});target.addEventListener('contextmenu',e=>{if(block.image)showImageContextMenu(e,block)});
    target.addEventListener('dblclick',e=>e.stopPropagation());
    target.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();openImagePicker(block)}});
   }
