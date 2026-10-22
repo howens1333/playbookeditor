@@ -157,6 +157,24 @@
 .issue-editor-header b{font-size:12px;color:var(--blue)}
 #addIssue{width:100%;justify-content:center}
 .table-block{min-width:0}.patch-table-wrap{width:100%;overflow-x:auto}.patch-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}.patch-table th{background:#e9f3f7;color:#28647c;text-align:left;font-size:10px;font-weight:750}.patch-table td,.patch-table th{border:1px solid #d8e3e8;padding:5px 7px;overflow-wrap:anywhere;vertical-align:top;min-height:22px}.patch-table tbody tr:nth-child(even){background:#f8fbfc}.patch-table td[contenteditable]:focus,.patch-table th[contenteditable]:focus{outline:2px solid var(--blue);outline-offset:-2px;background:#fff}.table-continuation{font-size:11px!important;color:#7292a0!important}@media print{.patch-table th,.patch-table tbody tr:nth-child(even){-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+
+/* Document-first editing, contextual settings, responsive shared toolbar */
+.layout{display:block}
+.studio-canvas{padding:24px 16px 90px;overflow:visible;min-height:calc(100vh - 112px)}
+.formatbar{position:sticky;top:65px;z-index:25;display:flex;align-items:center;gap:5px;padding:8px 14px;min-height:48px;background:#fff;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:thin}
+.formatbar select,.format-action{font:inherit;white-space:nowrap;border:1px solid transparent;background:transparent;border-radius:6px;padding:6px 9px;color:var(--ink);min-height:32px;cursor:pointer}
+.formatbar select{border-color:#dae3e7;background:#fafcfd;max-width:170px}
+.format-action:hover,.format-action:focus-visible{background:#eaf5f9;border-color:#c7dce5}
+.tool-separator{height:22px;border-left:1px solid #dde4e8;margin:0 5px;flex:none}
+.format-spacer{flex:1;min-width:5px}
+.studio-properties{position:fixed!important;top:0!important;right:0;bottom:0;left:auto;height:100vh!important;width:min(390px,92vw);z-index:60;display:block!important;visibility:hidden;transform:translateX(105%);transition:transform .18s ease,visibility .18s;overflow:auto;box-shadow:-10px 0 35px #19384722;padding:15px 18px}
+.studio-properties.show{visibility:visible;transform:translateX(0)}
+.properties-head{display:flex;justify-content:space-between;align-items:center;position:sticky;top:-15px;background:white;padding:12px 0;z-index:2;border-bottom:1px solid var(--border);margin-bottom:14px}
+.properties-scrim{position:fixed;inset:0;z-index:59;background:#122a3452;display:none}
+.properties-scrim.show{display:block}
+.live-edit{cursor:text;outline:1px solid var(--blue);outline-offset:3px;min-height:1.3em}
+@media(max-width:600px){.formatbar{top:65px;padding:6px 8px}.studio-canvas{padding:14px 8px}.formatbar select{max-width:130px}.docname{width:36vw}.topbar .brand{display:none}}
+@media print{.formatbar,.studio-properties,.properties-scrim{display:none!important}.studio-canvas{padding:0!important;min-height:0!important}.live-edit{outline:0!important}}
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
 <script>
@@ -207,7 +225,7 @@ function startInlineEdit(el){
  const key=b.type==='setup'?'summary':b.type==='checklist'?'text':b.type==='heading'?'title':b.type==='photo'?'caption':'text';
  const useRich=['image','text','checkpoint','note','whatif','troubleshooting','expected'].includes(b.type);
  const target=b.type==='image'?el.querySelector('.split .rich-output,.split p'):b.type==='setup'?el.querySelector('.toolsgrid>div:nth-child(2) p'):b.type==='checklist'?el.querySelector('.checks'):b.type==='heading'?el.querySelector('h4'):el.querySelector('.rich-output,.note-callout,.troublehead,.block>p');
- if(!target||['checklist','photo','signal','decision','procedure'].includes(b.type)) {selected=b.id;renderInspector();renderOutline();return;}
+ if(!target||['checklist','photo','signal','decision','procedure'].includes(b.type)) {selected=b.id;renderInspector();renderOutline();showProperties();return;}
  selected=b.id;renderInspector();renderOutline();document.querySelectorAll('.block').forEach(x=>x.classList.toggle('active',x===el));
  const original=target.innerHTML;
  // Edit the existing text element, preserving its position, dimensions, and styles.
@@ -373,7 +391,42 @@ async function importPdf(e){
  finally{e.target.value=''}
 }
 async function importGuide(e){try{const raw=JSON.parse(await e.target.files[0].text());if(raw.format!=='playbook-studio'||!raw.guide||!Array.isArray(raw.guide.blocks))throw Error('Not a Playbook Studio backup');const g=raw.guide;g.id=uid();g.updated=Date.now();g.blocks.forEach(b=>b.id=uid());await save(g);guides=await allGuides();toast('Guide imported');editGuide(g.id)}catch(err){toast('Unable to import this project file')}}
-function editGuide(id){guide=guides.find(g=>g.id===id);if(!guide)return;for(const b of guide.blocks){if((b.type==='image'||b.type==='text')&&(b.note||b.noteHtml)){const legacy=b.noteHtml?cleanHtml(b.noteHtml):'<p>'+nl(b.note)+'</p>';const base=b.textHtml?cleanHtml(b.textHtml):'<p>'+nl(b.text||'')+'</p>';b.textHtml=base+'<p><mark>'+legacy.replace(/^<p>|<\/p>$/g,'')+'</mark></p>';b.text=(b.text||'')+'\n'+(b.note||'');delete b.note;delete b.noteHtml}}selected=null;view='editor';document.documentElement.style.setProperty('--blue',guide.accent||'#177da1');$('#app').innerHTML=`<div class="topbar"><button class="iconbtn" id="back" title="Back to library">←</button><div class="brand"><span class="brand-mark">▤</span><span class="desktop-label">Playbook Studio</span></div><input class="docname" id="documentName" aria-label="Document title" value="${esc(guide.title)}"><span class="status" id="saveStatus">Saved locally</span><div class="spacer"></div><button class="btn mobile-nav" id="toggleBlocks">+ Blocks</button><button class="btn mobile-nav" id="toggleProperties">Edit</button><button class="btn" id="deselect" title="Deselect block (Esc)">Deselect</button><button class="btn" id="backup"><span class="desktop-label">Backup</span> ↓</button><button class="btn primary" id="pdf"><span class="desktop-label">Export </span>PDF</button></div><div class="layout"><aside class="sidebar" id="sidebar"><h3>Add blocks</h3>${Object.entries(TYPES).map(([key,v])=>`<button class="lib" data-add="${key}"><span class="glyph">${v[1]}</span><span><div class="lbl">${v[0]}</div><div class="desc">${v[2]}</div></span></button>`).join('')}<div class="separator"></div><h3>Document outline</h3><button class="navitem" id="documentSettings">⚙ Document settings</button><div id="outline"></div><div class="sidehint">Tip: Drag cards within the pages to reorder. Click a card to edit its contents.</div></aside><main class="canvas-wrap"><div class="canvasheading"><span>US Letter · 8.5 × 11 in</span><span id="pagecount">1 page</span></div><div id="papers"></div></main><aside class="rightbar" id="rightbar"><div id="inspector"></div></aside></div>`;$('#back').onclick=async()=>{clearTimeout(saveTimer);await save(guide);guides=await allGuides();renderHome()};$('#documentName').oninput=e=>{guide.title=e.target.value;scheduleRender();debouncePages()};$('#backup').onclick=backup;$('#pdf').onclick=()=>{selected=null;fitPages();window.print()};document.querySelectorAll('[data-add]').forEach(el=>el.onclick=()=>addBlock(el.dataset.add));$('#deselect').onclick=deselectBlock;$('#documentSettings').onclick=deselectBlock;$('#papers').addEventListener('click',e=>{if(!e.target.closest('.block'))deselectBlock()});$('#toggleBlocks').onclick=()=>{$('#sidebar').classList.toggle('show');$('#rightbar').classList.remove('show')};$('#toggleProperties').onclick=()=>{$('#rightbar').classList.toggle('show');$('#sidebar').classList.remove('show')};renderOutline();renderInspector();fitPages()}
+function showProperties(){const pane=$('#rightbar');if(!pane)return;renderInspector();pane.classList.add('show');$('#propertiesScrim')?.classList.add('show')}
+function hideProperties(){$('#rightbar')?.classList.remove('show');$('#propertiesScrim')?.classList.remove('show')}
+let studioRange=null;
+ document.addEventListener('selectionchange',()=>{if(view!=='editor')return;const sel=window.getSelection();if(sel?.rangeCount&&sel.anchorNode?.parentElement?.closest('.live-edit,[data-rich]'))studioRange=sel.getRangeAt(0).cloneRange()});
+ function topBarFormat(cmd,level){
+ const active=document.activeElement;
+ const editor=active?.closest?.('[contenteditable="true"]')||document.querySelector('.live-edit')||document.querySelector('#inspector [data-rich]:focus');
+ const sel=window.getSelection();if(studioRange&&editor&&editor.contains(studioRange.commonAncestorContainer)){sel.removeAllRanges();sel.addRange(studioRange)}if(!editor||!sel?.rangeCount||!editor.contains(sel.anchorNode)){toast('Double-click a text block to edit first');return}
+ const selected=sel.toString();if(['shortcut','menupath','inlinenote'].includes(cmd)&&!selected.trim()){toast('Select some text first');return}
+ if(cmd==='shortcut')document.execCommand('insertHTML',false,'<kbd>'+esc(selected)+'</kbd>');
+ else if(cmd==='inlinenote')document.execCommand('insertHTML',false,'<mark class="note-'+level+'">'+esc(selected)+'</mark>');
+ else if(cmd==='menupath'){const parts=selected.trim().split(/\s*(?:->|→|›|\/|\\)\s*/).filter(Boolean);if(parts.length<2){toast('Select two or more path items');return}document.execCommand('insertHTML',false,'<span class="menu-path">'+parts.map(x=>'<kbd>'+esc(x)+'</kbd>').join(' › ')+'</span>')}
+ else document.execCommand(cmd,false,null);
+ editor.dispatchEvent(new Event('input'));
+}
+function editGuide(id){
+ guide=guides.find(g=>g.id===id);if(!guide)return;
+ for(const b of guide.blocks){if((b.type==='image'||b.type==='text')&&(b.note||b.noteHtml)){const legacy=b.noteHtml?cleanHtml(b.noteHtml):'<p>'+nl(b.note)+'</p>';const base=b.textHtml?cleanHtml(b.textHtml):'<p>'+nl(b.text||'')+'</p>';b.textHtml=base+'<p><mark>'+legacy.replace(/^<p>|<\/p>$/g,'')+'</mark></p>';b.text=(b.text||'')+'\n'+(b.note||'');delete b.note;delete b.noteHtml}}
+ selected=null;view='editor';document.documentElement.style.setProperty('--blue',guide.accent||'#177da1');
+ const tools=[['bold','B','Bold'],['italic','I','Italic'],['underline','U','Underline'],['insertUnorderedList','• List','Bullets'],['insertOrderedList','1. List','Numbers'],['indent','→','Indent'],['outdent','←','Outdent'],['shortcut','⌘ Button','Key / button'],['menupath','› Path','File or menu path']];
+ $('#app').innerHTML='<div class="topbar"><button class="iconbtn" id="back" title="Back to guides">←</button><div class="brand"><span class="brand-mark">▤</span><span class="desktop-label">Playbook Studio</span></div><input class="docname" id="documentName" aria-label="Document title" value="'+esc(guide.title)+'"><span class="status" id="saveStatus">Saved locally</span><div class="spacer"></div><button class="btn" id="backup">Backup ↓</button><button class="btn primary" id="pdf">Export PDF</button></div>'+
+ '<div class="formatbar" role="toolbar" aria-label="Text formatting"><select id="addBlockSelect" aria-label="Insert block"><option value="">+ Insert block</option>'+Object.entries(TYPES).map(([k,v])=>'<option value="'+k+'">'+esc(v[0])+'</option>').join('')+'</select><span class="tool-separator"></span>'+tools.map(([cmd,label,title])=>'<button class="format-action" data-topcmd="'+cmd+'" title="'+title+'">'+label+'</button>').join('')+'<span class="tool-separator"></span><select id="noteStyle" aria-label="Note severity"><option value="">ⓘ Note…</option><option value="info">ⓘ Information</option><option value="caution">⚠ Caution</option><option value="danger">⛔ Danger</option></select><div class="format-spacer"></div><button class="format-action" id="propertiesButton" title="Edit selected block settings">⚙ Block settings</button><button class="format-action" id="documentSettings" title="Document settings">Document</button></div>'+
+ '<main class="canvas-wrap studio-canvas"><div class="canvasheading"><span>Double-click text to edit · Select text for formatting</span><span id="pagecount">1 page</span></div><div id="papers"></div></main>'+
+ '<div class="properties-scrim" id="propertiesScrim"></div><aside class="rightbar studio-properties" id="rightbar"><div class="properties-head"><strong>Block settings</strong><button class="iconbtn" id="closeProperties" aria-label="Close settings">×</button></div><div id="inspector"></div></aside><div id="outline" hidden></div>';
+ $('#back').onclick=async()=>{clearTimeout(saveTimer);await save(guide);guides=await allGuides();renderHome()};
+ $('#documentName').oninput=e=>{guide.title=e.target.value;scheduleRender();debouncePages()};
+ $('#backup').onclick=backup;$('#pdf').onclick=()=>{hideProperties();selected=null;fitPages();window.print()};
+ $('#addBlockSelect').onchange=e=>{if(e.target.value)addBlock(e.target.value);e.target.value=''};
+ document.querySelectorAll('[data-topcmd]').forEach(btn=>{btn.onmousedown=e=>e.preventDefault();btn.onclick=()=>topBarFormat(btn.dataset.topcmd)});
+ $('#noteStyle').onchange=e=>{if(e.target.value)topBarFormat('inlinenote',e.target.value);e.target.value=''};
+ $('#propertiesButton').onclick=()=>showProperties();
+ $('#documentSettings').onclick=()=>{deselectBlock();showProperties()};
+ $('#closeProperties').onclick=hideProperties;$('#propertiesScrim').onclick=hideProperties;
+ $('#papers').addEventListener('click',e=>{if(!e.target.closest('.block')){deselectBlock();hideProperties()}});
+ renderOutline();renderInspector();fitPages();
+}
 function imageUrlFromHtml(html){const doc=new DOMParser().parseFromString(html||'','text/html');const img=doc.querySelector('img[src],img[data-src]');const src=img?.getAttribute('src')||img?.getAttribute('data-src');if(src&&(/^(data:image\/|https?:\/\/|blob:)/i).test(src))return src;return null}
 async function imageFromClipboardData(data){
  const file=Array.from(data?.files||[]).find(x=>x.type.startsWith('image/'));if(file)return file;const item=Array.from(data?.items||[]).find(x=>x.type.startsWith('image/'));if(item){const blob=item.getAsFile();if(blob)return blob}
