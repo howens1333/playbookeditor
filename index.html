@@ -186,41 +186,48 @@ function field(b,key,label,kind='input',opts=null){const v=b[key]??'';return `<d
 function renderInspector(){const box=$('#inspector');if(!box)return;const b=guide.blocks.find(b=>b.id===selected);if(!b){box.innerHTML=`<h2 class="inspector-title">Document settings</h2><p class="inspector-desc">Edit the title, version and revised date here. Click any block to edit it; press Escape to return to document settings.</p>${field(guide,'title','Document title')}${field(guide,'version','Version')}${field(guide,'revised','Revised date')}<div class="field"><label>Accent color</label><input type="color" data-field="accent" value="${esc(guide.accent)}"></div><div class="separator"></div><div class="separator"></div><p class="hint"><b>Shortcuts:</b> Esc — deselect · ⌘/Ctrl+S — save · ⌘/Ctrl+P — export PDF · ⌘/Ctrl+D — duplicate selected block · Delete — remove block · Option/Alt+↑/↓ — move block.</p><p class="hint">Changes save in this browser only. Download a project backup if you need to move it to another device.</p>`;bindFields(box,guide);return}let html=`<h2 class="inspector-title">${TYPES[b.type][0]}</h2><p class="inspector-desc">${TYPES[b.type][2]}</p>`;if(['checklist','heading','troubleshooting','whatif','note'].includes(b.type))html+=field(b,'title','Heading / problem');if(b.type==='note')html+=field(b,'level','Callout type','select',[['info','Info (blue)'],['caution','Be careful (yellow)'],['danger','Do not do (red)']]);if(b.type==='setup'){html+=richField(b,'tools','Required tools / equipment')+field(b,'duration','Estimated time')+richField(b,'summary','Setup summary')}else if(b.type!=='heading'){if(['image','photo'].includes(b.type)){if(b.type==='image')html+=richField(b,'text','Step instructions');html+=`<div class="field"><label>Image</label><input id="imageUpload" type="file" accept="image/*"><div class="btnrow"><button class="btn small" id="pasteImg">Paste from clipboard</button>${b.image?'<button class="btn small" id="clearImg">Remove image</button>':''}</div><div class="hint">Upload or paste screenshots. Images are stored with the guide in your browser.</div></div>`;if(b.type==='image')html+=field(b,'side','Image position','select',[['right','Right'],['left','Left']])+field(b,'ratio','Column proportions','select',[['50','50 / 50'],['60','60 / 40'],['40','40 / 60']]);html+=field(b,'caption','Image caption')}else html+=b.type==='checklist'?richField(b,'text','Checklist items and headings')+'<p class="hint">Use the Heading toolbar control for section titles and bulleted lines for checklist items. Legacy ## AUDIO headings still work.</p>':richField(b,'text','Text / instructions');if(b.type==='checklist')html+=field(b,'columns','Checklist columns','select',[['1','One column'],['2','Two columns']])}html+=`<div class="separator"></div><div class="btnrow"><button class="btn small" id="up">↑ Move up</button><button class="btn small" id="down">↓ Move down</button><button class="btn small" id="duplicate">Duplicate</button><button class="btn small" id="delete" style="color:#bd3f45">Delete</button></div>`;box.innerHTML=html;bindFields(box,b);bindRich(box,b);const file=$('#imageUpload');if(file)file.onchange=async e=>{const f=e.target.files[0];if(f)await loadImage(f,b)};$('#pasteImg')?.addEventListener('click',()=>pasteImageToBlock(b,null));$('#clearImg')?.addEventListener('click',()=>update(()=>b.image='',true));$('#up').onclick=()=>shift(-1);$('#down').onclick=()=>shift(1);$('#duplicate').onclick=()=>{const i=guide.blocks.indexOf(b),copy={...clone(b),id:uid()};update(()=>{guide.blocks.splice(i+1,0,copy);selected=copy.id},true)};$('#delete').onclick=()=>{update(()=>{guide.blocks=guide.blocks.filter(x=>x.id!==b.id);selected=null},true)}}
 function bindFields(root,obj){root.querySelectorAll('[data-field]').forEach(el=>{el.addEventListener('input',()=>{obj[el.dataset.field]=el.value;if(el.dataset.field==='accent')document.documentElement.style.setProperty('--blue',el.value);scheduleRender();debouncePages();if(el.dataset.field==='title')$('#documentName').value=guide.title});el.addEventListener('change',()=>{if(el.tagName==='SELECT')fitPages()})})}
 function bindRich(root,b){
- let activeEditor=null;
+ const savedRanges=new WeakMap();
  root.querySelectorAll('[data-rich]').forEach(el=>{
-  el.addEventListener('focus',()=>activeEditor=el);
+  const remember=()=>{const sel=window.getSelection();if(sel?.rangeCount&&el.contains(sel.anchorNode)&&el.contains(sel.focusNode))savedRanges.set(el,sel.getRangeAt(0).cloneRange())};
+  el.addEventListener('keyup',remember);el.addEventListener('mouseup',remember);el.addEventListener('selectstart',()=>requestAnimationFrame(remember));
+  el.addEventListener('paste',e=>{
+   const raw=e.clipboardData?.getData('text/html'),plain=e.clipboardData?.getData('text/plain');
+   if(!raw&&!plain)return;
+   e.preventDefault();
+   // Strip Canva-only spans, inline styles and wrappers, retaining semantic lists and basic text formatting.
+   const html=raw?cleanHtml(raw):esc(plain).replace(/\r\n?/g,'\n').replace(/\n/g,'<br>');
+   document.execCommand('insertHTML',false,html);
+   el.dispatchEvent(new Event('input'));
+   remember();
+  });
   el.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!window.getSelection()?.anchorNode?.parentElement?.closest('li,ul,ol,h3')){e.preventDefault();document.execCommand('insertLineBreak',false,null)}});
-  el.addEventListener('keydown',e=>{if(e.key==='Tab'&&(el.closest('li')||window.getSelection()?.anchorNode?.parentElement?.closest('li'))){e.preventDefault();document.execCommand(e.shiftKey?'outdent':'indent',false,null)}});
+  el.addEventListener('keydown',e=>{if(e.key==='Tab'&&window.getSelection()?.anchorNode?.parentElement?.closest('li')){e.preventDefault();document.execCommand(e.shiftKey?'outdent':'indent',false,null)}});
   el.addEventListener('input',()=>{const key=el.dataset.rich;b[key+'Html']=cleanHtml(el.innerHTML);b[key]=el.innerText||'';scheduleRender();debouncePages()});
   el.addEventListener('blur',()=>debouncePages());
  });
  root.querySelectorAll('[data-cmd]').forEach(btn=>{
-  btn.onmousedown=e=>e.preventDefault();
-  btn.onclick=()=>{
-   const field=btn.closest('.field');
-   const editor=field?.querySelector('[data-rich]')||activeEditor;
-   if(!editor)return;
+  const editor=btn.closest('.field')?.querySelector('[data-rich]');
+  if(!editor)return;
+  btn.addEventListener('mousedown',e=>e.preventDefault());
+  btn.addEventListener('click',()=>{
+   editor.focus();
+   const range=savedRanges.get(editor);
    const sel=window.getSelection();
-   const hasSelection=sel&&sel.rangeCount&&editor.contains(sel.anchorNode)&&editor.contains(sel.focusNode)&&!sel.isCollapsed;
-   if(btn.dataset.cmd==='inlinenote'){
-    if(!hasSelection){toast('Select text first, then click ⓘ Note');return}
-    const range=sel.getRangeAt(0);const text=sel.toString();
-    if(!text.trim()){toast('Select text first');return}
-    // Apply styling in the selected paragraph instead of adding a separate note field.
-    editor.focus();document.execCommand('insertHTML',false,'<mark class="note-'+(btn.dataset.level||'info')+'">'+esc(text)+'</mark>');
-   }else if(btn.dataset.cmd==='menupath'){
-    if(!hasSelection){toast('Select a path such as File -> Open File -> Documents / Service');return}
+   if(range&&editor.contains(range.commonAncestorContainer)){sel.removeAllRanges();sel.addRange(range)}
+   const selected=sel?.rangeCount&&editor.contains(sel.anchorNode)&&editor.contains(sel.focusNode)&&!sel.isCollapsed;
+   const command=btn.dataset.cmd;
+   if(['inlinenote','menupath','shortcut'].includes(command)&&!selected){toast('Select the text you want to format first');return}
+   if(command==='inlinenote'){
+    document.execCommand('insertHTML',false,'<mark class="note-'+(btn.dataset.level||'info')+'">'+esc(sel.toString())+'</mark>');
+   }else if(command==='menupath'){
     const steps=sel.toString().trim().split(/\s*(?:->|→|›|\/|\\)\s*/).filter(Boolean);
-    if(steps.length<2){toast('Select path items separated by arrows or slashes');return}
-    editor.focus();document.execCommand('insertHTML',false,'<span class="menu-path">'+steps.map(part=>'<kbd>'+esc(part)+'</kbd>').join(' › ')+'</span>');
-   }else if(btn.dataset.cmd==='shortcut'){
-    if(!hasSelection){toast('Select text first to style it as a button');return}
-    const text=sel.toString();editor.focus();document.execCommand('insertHTML',false,'<kbd>'+esc(text)+'</kbd>');
-   }else{
-    editor.focus();document.execCommand(btn.dataset.cmd,false,btn.dataset.value||null);
-   }
+    if(steps.length<2){toast('Select a path with arrows or slashes');return}
+    document.execCommand('insertHTML',false,'<span class="menu-path">'+steps.map(x=>'<kbd>'+esc(x)+'</kbd>').join(' › ')+'</span>');
+   }else if(command==='shortcut'){
+    document.execCommand('insertHTML',false,'<kbd>'+esc(sel.toString())+'</kbd>');
+   }else document.execCommand(command,false,btn.dataset.value||null);
    editor.dispatchEvent(new Event('input'));
-  };
+  });
  });
 }
 let layoutTimer;function debouncePages(){clearTimeout(layoutTimer);layoutTimer=setTimeout(()=>{if(view==='editor')fitPages()},420)}
