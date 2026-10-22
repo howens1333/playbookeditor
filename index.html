@@ -113,6 +113,15 @@
 .rich-output mark.note-caution,.rich-edit mark.note-caution,.live-edit mark.note-caution{background:#fff5d6;color:#795714}
 .rich-output mark.note-danger,.rich-edit mark.note-danger,.live-edit mark.note-danger{background:#ffe8e8;color:#8e2c2c}
 @media print{.rich-output mark,.rich-output kbd,.menu-path{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+
+/* Keep a single Enter close to one line of vertical spacing across editor and output. */
+.rich-output,.rich-edit,.live-edit{line-height:1.55}
+.rich-output p,.rich-edit p,.live-edit p{margin:0 0 3px!important;white-space:normal}
+.rich-output div,.rich-edit div,.live-edit div{margin:0}
+.rich-output br,.rich-edit br,.live-edit br{line-height:inherit}
+.rich-output ul,.rich-output ol,.rich-edit ul,.rich-edit ol{margin:3px 0!important}
+.rich-output li,.rich-edit li{margin:1px 0!important}
+.rich-output mark,.rich-edit mark,.live-edit mark{margin:5px 0!important}
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
 <script>
@@ -160,7 +169,7 @@ function startInlineEdit(el){
  else target.innerHTML=original;
  debouncePages();renderInspector();renderOutline();
  }
- target.addEventListener('keydown',function keydown(e){e.stopPropagation();if(e.key==='Escape'){e.preventDefault();finish(false);target.blur()}else if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();finish(true);target.blur()}},{signal:(()=>{const c=new AbortController();target.addEventListener('blur',()=>{finish(true);c.abort()},{once:true});return c.signal})()});
+ target.addEventListener('keydown',function keydown(e){e.stopPropagation();if(e.key==='Escape'){e.preventDefault();finish(false);target.blur()}else if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();finish(true);target.blur()}else if(e.key==='Enter'&&!e.shiftKey&&!e.altKey&&!window.getSelection()?.anchorNode?.parentElement?.closest('li,ul,ol,h3')){e.preventDefault();document.execCommand('insertLineBreak',false,null)}},{signal:(()=>{const c=new AbortController();target.addEventListener('blur',()=>{finish(true);c.abort()},{once:true});return c.signal})()});
  target.focus();const selection=window.getSelection();if(selection){const range=document.createRange();range.selectNodeContents(target);range.collapse(false);selection.removeAllRanges();selection.addRange(range)}
 }
  function moveBlock(a,b){if(!a||a===b)return;const src=guide.blocks.findIndex(x=>x.id===a),dst=guide.blocks.findIndex(x=>x.id===b);if(src<0||dst<0)return;update(()=>{const [x]=guide.blocks.splice(src,1);guide.blocks.splice(guide.blocks.findIndex(x=>x.id===b),0,x)})}
@@ -173,6 +182,7 @@ function bindRich(root,b){
  let activeEditor=null;
  root.querySelectorAll('[data-rich]').forEach(el=>{
   el.addEventListener('focus',()=>activeEditor=el);
+  el.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!window.getSelection()?.anchorNode?.parentElement?.closest('li,ul,ol,h3')){e.preventDefault();document.execCommand('insertLineBreak',false,null)}});
   el.addEventListener('keydown',e=>{if(e.key==='Tab'&&(el.closest('li')||window.getSelection()?.anchorNode?.parentElement?.closest('li'))){e.preventDefault();document.execCommand(e.shiftKey?'outdent':'indent',false,null)}});
   el.addEventListener('input',()=>{const key=el.dataset.rich;b[key+'Html']=cleanHtml(el.innerHTML);b[key]=el.innerText||'';scheduleRender();debouncePages()});
   el.addEventListener('blur',()=>debouncePages());
