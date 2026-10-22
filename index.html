@@ -223,6 +223,15 @@
 .image-placeholder,.stepimg[role="button"]{cursor:pointer}.image-placeholder:hover{border-color:var(--blue);background:#eef8fc}.stepimg[role="button"]:focus-visible,.image-placeholder:focus-visible{outline:2px solid var(--blue);outline-offset:3px}@media print{.image-placeholder{cursor:default}}
 /* Prevent Safari's scroll anchoring from targeting temporary page-one markup. */
 #papers{overflow-anchor:none}
+/* Compact screenshot layout: wider printable image area, lower row height. */
+.split{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:14px;align-items:start}
+.split.ratio60{grid-template-columns:minmax(0,3fr) minmax(0,2fr)}
+.split.ratio40{grid-template-columns:minmax(0,2fr) minmax(0,3fr)}
+.step-image-slot,.step-image-slot>div{width:100%;min-width:0}
+.step-image-slot .stepimg{width:100%;height:145px;max-width:100%;max-height:145px;object-fit:cover;object-position:center top;margin:0;border-radius:6px}
+.step-image-slot .image-placeholder{min-height:125px}
+.step-image-slot .labeltiny{margin-top:3px;text-align:right}
+@media print{.step-image-slot .stepimg{height:145px!important;max-height:145px!important;width:100%!important;object-fit:cover!important;object-position:center top!important}}
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
 <script>
