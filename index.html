@@ -263,6 +263,11 @@
 .crop-preview.original img{position:static;height:auto;object-fit:contain}
 .crop-help{font-size:12px;color:#607684;margin:12px 0}
 @media print{.image-context-menu,.crop-dialog{display:none!important}}
+/* Crop frames align with the leading edge of their image column. */
+.step-image-slot{justify-content:flex-start!important;text-align:left!important}
+.step-image-slot>div{display:block;min-width:0}
+.step-image-slot .crop-frame{margin-left:0!important;margin-right:auto!important}
+.step-image-slot .labeltiny{text-align:left!important}
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
 <script>
