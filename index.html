@@ -216,6 +216,10 @@
 .timeline-description:empty::before{content:"Add description";color:#9caeb7}
 .timeline-label:empty::before{content:"Event title";color:#9caeb7}
 @media print{.timeline-time:empty,.timeline-description:empty{display:none!important}.timeline-label:empty::before{content:none!important}}
+.hover-item-controls{position:fixed!important;visibility:hidden;opacity:0;pointer-events:none;z-index:1000}
+.hover-item-controls.is-visible{visibility:visible;opacity:1;pointer-events:auto}
+@media(hover:none){.hover-item-controls{visibility:visible;opacity:1;pointer-events:auto}}
+@media print{body>.hover-item-controls{display:none!important}}
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
 <script>
@@ -368,6 +372,7 @@ function addInlineModuleItem(b,action){
  update(()=>{},true);
 }
 function bindInlineModuleActions(){
+ document.querySelectorAll('body > .hover-item-controls').forEach(x=>x.remove());
  const map={timeline:'.timeline-event',signal:'.signal-node',troubleshooting:'.issue-entry',whatif:'.issue-entry',procedure:'.procedure-steps li',table:'.patch-table tbody tr',checklist:'.checks li'};
  document.querySelectorAll('#papers .block').forEach(el=>{
   const block=guide.blocks.find(b=>b.id===el.dataset.id);
@@ -395,7 +400,13 @@ function bindInlineModuleActions(){
     make('+','Add item',()=>{addInlineModuleItem(block,block.type==='signal'?'stage':'item')});
     if(block.type==='signal')make('↗','Add parallel device',()=>addInlineModuleItem(block,'parallel'));
    }
-   item.appendChild(controls);
+   document.body.appendChild(controls);
+   let hideTimer;
+   const show=()=>{clearTimeout(hideTimer);const rect=item.getBoundingClientRect();controls.style.position='fixed';controls.style.left=Math.max(8,Math.min(window.innerWidth-controls.offsetWidth-10,rect.right+9))+'px';controls.style.top=Math.max(8,Math.min(window.innerHeight-36,rect.top))+'px';controls.classList.add('is-visible')};
+   const hide=()=>{hideTimer=setTimeout(()=>controls.classList.remove('is-visible'),180)};
+   item.addEventListener('mouseenter',show);item.addEventListener('mouseleave',hide);
+   item.addEventListener('focusin',show);item.addEventListener('focusout',hide);
+   controls.addEventListener('mouseenter',()=>clearTimeout(hideTimer));controls.addEventListener('mouseleave',hide);
   });
  });
 }
