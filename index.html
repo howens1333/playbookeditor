@@ -231,7 +231,7 @@ function contextualEdit(el,point){
  const b=guide.blocks.find(x=>x.id===el.dataset.id);if(!b)return;
  const selectors={
  setup:[['.toolsgrid>div:first-child .rich-output','tools'],['.toolsgrid>div:nth-child(2) .rich-output','summary']],
- image:[['.split .rich-output','text']],text:[['.rich-output','text']],checkpoint:[['.rich-output','text']],note:[['.note-content .rich-output','text']],expected:[['.expected-result .rich-output','text']],heading:[['h4','title']],decision:[['.decision-question','question'],['.decision-option.yes .rich-output','yes'],['.decision-option.no .rich-output','no']],photo:[['.labeltiny','caption']]
+ image:[['.split .rich-output,.split p','text']],text:[['.rich-output,.block>p','text']],checkpoint:[['.rich-output,.block>p','text']],note:[['.note-content .rich-output,.note-content p','text']],expected:[['.expected-result .rich-output,.expected-result p','text']],heading:[['h4','title']],decision:[['.decision-question','question'],['.decision-option.yes .rich-output,.decision-option.yes p','yes'],['.decision-option.no .rich-output,.decision-option.no p','no']],photo:[['.labeltiny','caption']]
  };
  if(['troubleshooting','whatif'].includes(b.type)){
   const issue=point.closest('.issue-entry'),entries=issueEntries(b),i=issue?Array.from(el.querySelectorAll('.issue-entry')).indexOf(issue):0;
@@ -280,7 +280,7 @@ function bindDirectText(){
   (fields[b.type]||[]).forEach(([selector,key])=>el.querySelectorAll(selector).forEach(n=>attach(n,b,key,!['title','caption','question'].includes(key))));
   if(['troubleshooting','whatif'].includes(b.type)){
    if(!Array.isArray(b.entries))b.entries=issueEntries(b);
-   el.querySelectorAll('.issue-entry').forEach((row,i)=>{const entry=b.entries[i];if(!entry)return;attach(row.querySelector('.troublehead'),entry,'title');attach(row.querySelector('.rich-output'),entry,'text',true)});
+   el.querySelectorAll('.issue-entry').forEach((row,i)=>{const entry=b.entries[i];if(!entry)return;attach(row.querySelector('.troublehead'),entry,'title');attach(row.querySelector('.rich-output,.issue-entry p'),entry,'text',true)});
   }
   if(b.type==='procedure'){
    el.querySelectorAll('.procedure-steps li').forEach((li,i)=>{
@@ -370,7 +370,7 @@ function bindRich(root,b){
   });
  });
 }
-let layoutTimer;function debouncePages(){clearTimeout(layoutTimer);layoutTimer=setTimeout(()=>{if(view==='editor')fitPages()},420)}
+let layoutTimer;function debouncePages(){clearTimeout(layoutTimer);layoutTimer=setTimeout(()=>{if(view==='editor'&&!document.querySelector('#papers [contenteditable="true"]:focus'))fitPages()},420)}
 function deselectBlock(){if(view!=='editor'||!guide)return;selected=null;document.querySelectorAll('.block.active').forEach(el=>el.classList.remove('active'));renderInspector();renderOutline()}
 function duplicateSelected(){const b=guide?.blocks.find(x=>x.id===selected);if(!b)return;const i=guide.blocks.indexOf(b),copy={...clone(b),id:uid()};update(()=>{guide.blocks.splice(i+1,0,copy);selected=copy.id},true)}
 function deleteSelected(){if(!selected)return;update(()=>{guide.blocks=guide.blocks.filter(b=>b.id!==selected);selected=null},true)}
