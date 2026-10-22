@@ -393,10 +393,12 @@ async function importPdf(e){
 async function importGuide(e){try{const raw=JSON.parse(await e.target.files[0].text());if(raw.format!=='playbook-studio'||!raw.guide||!Array.isArray(raw.guide.blocks))throw Error('Not a Playbook Studio backup');const g=raw.guide;g.id=uid();g.updated=Date.now();g.blocks.forEach(b=>b.id=uid());await save(g);guides=await allGuides();toast('Guide imported');editGuide(g.id)}catch(err){toast('Unable to import this project file')}}
 function showProperties(){const pane=$('#rightbar');if(!pane)return;renderInspector();pane.classList.add('show');$('#propertiesScrim')?.classList.add('show')}
 function hideProperties(){$('#rightbar')?.classList.remove('show');$('#propertiesScrim')?.classList.remove('show')}
-function topBarFormat(cmd,level){
+let studioRange=null;
+ document.addEventListener('selectionchange',()=>{if(view!=='editor')return;const sel=window.getSelection();if(sel?.rangeCount&&sel.anchorNode?.parentElement?.closest('.live-edit,[data-rich]'))studioRange=sel.getRangeAt(0).cloneRange()});
+ function topBarFormat(cmd,level){
  const active=document.activeElement;
- const editor=active?.closest?.('[contenteditable="true"]')||document.querySelector('.live-edit');
- const sel=window.getSelection();if(!editor||!sel?.rangeCount||!editor.contains(sel.anchorNode)){toast('Double-click a text block to edit first');return}
+ const editor=active?.closest?.('[contenteditable="true"]')||document.querySelector('.live-edit')||document.querySelector('#inspector [data-rich]:focus');
+ const sel=window.getSelection();if(studioRange&&editor&&editor.contains(studioRange.commonAncestorContainer)){sel.removeAllRanges();sel.addRange(studioRange)}if(!editor||!sel?.rangeCount||!editor.contains(sel.anchorNode)){toast('Double-click a text block to edit first');return}
  const selected=sel.toString();if(['shortcut','menupath','inlinenote'].includes(cmd)&&!selected.trim()){toast('Select some text first');return}
  if(cmd==='shortcut')document.execCommand('insertHTML',false,'<kbd>'+esc(selected)+'</kbd>');
  else if(cmd==='inlinenote')document.execCommand('insertHTML',false,'<mark class="note-'+level+'">'+esc(selected)+'</mark>');
