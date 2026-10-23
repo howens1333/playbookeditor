@@ -608,6 +608,41 @@ function deselectBlock(){if(view!=='editor'||!guide)return;selected=null;documen
 function duplicateSelected(){const b=guide?.blocks.find(x=>x.id===selected);if(!b)return;const i=guide.blocks.indexOf(b),copy={...clone(b),id:uid()};update(()=>{guide.blocks.splice(i+1,0,copy);selected=copy.id},true)}
 function deleteSelected(){if(!selected)return;update(()=>{guide.blocks=guide.blocks.filter(b=>b.id!==selected);selected=null},true)}
 function shift(dir){const i=guide.blocks.findIndex(x=>x.id===selected),j=i+dir;if(j<0||j>=guide.blocks.length)return;update(()=>{[guide.blocks[i],guide.blocks[j]]=[guide.blocks[j],guide.blocks[i]]})}
+// Downsample raster photos only for the print snapshot; saved originals remain untouched.
+const printImageCache=new Map();
+async function printSizedImage(src){
+ if(printImageCache.has(src))return printImageCache.get(src);
+ const pending=new Promise(resolve=>{
+  const img=new Image();
+  img.onload=()=>{
+   try{
+    const edge=1800,scale=Math.min(1,edge/Math.max(img.naturalWidth,img.naturalHeight));
+    const w=Math.max(1,Math.round(img.naturalWidth*scale)),h=Math.max(1,Math.round(img.naturalHeight*scale));
+    const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+    const ctx=canvas.getContext('2d',{alpha:false});
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(img,0,0,w,h);
+    const jpg=canvas.toDataURL('image/jpeg',.83);
+    resolve(jpg.length<src.length?jpg:src);
+   }catch{resolve(src)}
+  };
+  img.onerror=()=>resolve(src);img.src=src;
+ });
+ printImageCache.set(src,pending);return pending;
+}
+async function printOptimizedGuide(){
+ const images=Array.from(document.querySelectorAll('#papers .stepimg'));
+ const originals=images.map(img=>img.src);
+ const optimized=await Promise.all(originals.map(src=>printSizedImage(src)));
+ // Use a complete print snapshot with reduced raster bytes. Restore the working
+ // editor afterward, including non-destructive crop coordinates and original images.
+ images.forEach((img,i)=>{if(optimized[i]!==originals[i])img.src=optimized[i]});
+ await Promise.all(images.map(img=>img.decode?.().catch(()=>{})||Promise.resolve()));
+ let restored=false;
+ const restore=()=>{if(restored)return;restored=true;images.forEach((img,i)=>img.src=originals[i]);window.removeEventListener('afterprint',restore)};
+ window.addEventListener('afterprint',restore,{once:true});
+ try{window.print()}catch(e){restore();throw e}
+}
 async function loadImage(blob,b){if(blob.size>18e6){toast('Image too large (18 MB maximum).');return}const reader=new FileReader();reader.onload=()=>{update(()=>b.image=reader.result,true);toast('Image added')};reader.readAsDataURL(blob)}
 function addBlock(type){const defaults={setup:{tools:'',summary:'',duration:''},image:{text:'',note:'',side:'right',ratio:'50',cropRatio:'landscape',cropX:50,cropY:50},text:{text:''},checkpoint:{text:''},troubleshooting:{title:'Problem',text:''},checklist:{title:'CHECKLIST',text:'',columns:'1'},heading:{title:'New section'},note:{title:'NOTE',text:'',level:'info'},whatif:{title:'Scenario',text:''},photo:{caption:''},decision:{question:'Is everything working?',yes:'Continue to the next step.',no:'Check connections and troubleshoot.'},signal:{title:'SIGNAL FLOW',graph:'Apple TV | Mac Mini\nHDMI Splitter\nSound Mixer | Projector',caption:''},procedure:{title:'PROCEDURE',items:'Open the application\nChoose the correct file\nVerify the settings'},expected:{text:'Confirm the equipment is working as intended.'},table:{title:'REFERENCE TABLE',preset:'blank',columns:['Column 1','Column 2','Column 3'],rows:[['','',''],['','','']]},timeline:{title:'TIMELINE',layout:'vertical',events:[{time:'7:00 AM',title:'Startup',details:'Verify equipment.'},{time:'7:30 AM',title:'Soundcheck',details:'Check sources.'}]}};const b={id:uid(),type,...defaults[type]};update(()=>{const idx=guide.blocks.findIndex(x=>x.id===selected);guide.blocks.splice(idx<0?guide.blocks.length:idx+1,0,b);selected=b.id},true);document.querySelector(`.block[data-id="${b.id}"]`)?.scrollIntoView({behavior:'smooth',block:'center'})}
 function exportFile(name,data,type){const blob=new Blob([data],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)}
@@ -730,7 +765,7 @@ function editGuide(id){
  '<div class="properties-scrim" id="propertiesScrim"></div><section class="studio-properties" id="rightbar" role="dialog" aria-modal="true" aria-label="Block options"><div class="properties-head"><strong>Block settings</strong><button class="iconbtn" id="closeProperties" aria-label="Close settings">×</button></div><div id="inspector"></div></section><div id="outline" hidden></div>';
  $('#back').onclick=async()=>{clearTimeout(saveTimer);await save(guide);guides=await allGuides();renderHome()};
  $('#documentName').oninput=e=>{guide.title=e.target.value;scheduleRender();debouncePages()};
- $('#backup').onclick=backup;$('#pdf').onclick=()=>{hideProperties();selected=null;fitPages();window.print()};
+ $('#backup').onclick=backup;$('#pdf').onclick=async()=>{hideProperties();selected=null;fitPages();await printOptimizedGuide()};
  $('#addBlockSelect').onchange=e=>{if(e.target.value)addBlock(e.target.value);e.target.value=''};
  document.querySelectorAll('[data-topcmd]').forEach(btn=>{btn.onmousedown=e=>e.preventDefault();btn.onclick=()=>topBarFormat(btn.dataset.topcmd)});
  document.querySelectorAll('[data-note]').forEach(btn=>{btn.onmousedown=e=>e.preventDefault();btn.onclick=()=>topBarFormat('inlinenote',btn.dataset.note)});
