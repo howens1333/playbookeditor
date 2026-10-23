@@ -268,6 +268,8 @@
 .step-image-slot>div{display:block;min-width:0;margin-left:auto;margin-right:0}
 .step-image-slot .crop-frame{margin-left:auto!important;margin-right:0!important}
 .step-image-slot .labeltiny{text-align:right!important}
+/* Keep browser scroll anchoring from shifting the viewport during page regeneration. */
+html,body,.studio-canvas,#papers{overflow-anchor:none}
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
 <script>
@@ -322,18 +324,14 @@ function paperHeader(){return `<div class="paperhead"><div class="paper-title">$
 function paperFooter(num,total){return `<div class="paperfooter"><span>Version ${esc(guide.version||'1.0')} | Revised ${esc(guide.revised||'')}</span><span class="footer-page">Page ${num} of ${total}</span></div>`}
 function pageHtml(items,num,total=1){return `<section class="paper" data-page="${num}">${paperHeader()}<div class="paperbody">${items.join('')}</div>${paperFooter(num,total)}</section>`}
 function fitPages(){const blocks=guide.blocks,canvas=$('#papers');if(!canvas)return;
- // Rebuilding the entire page tree otherwise triggers Safari scroll anchoring to page one.
+ // Preserve the actual viewport position while rebuilding pages. Page indices are
+ // unstable when text or images change pagination.
  const scrollRoot=document.scrollingElement||document.documentElement;
  const previousY=scrollRoot.scrollTop;
- const oldPages=Array.from(canvas.querySelectorAll('.paper'));
- const anchor=oldPages.find(p=>p.getBoundingClientRect().bottom>96)||oldPages[oldPages.length-1];
- const pageIndex=anchor?oldPages.indexOf(anchor):0;
- const pageOffset=anchor?anchor.getBoundingClientRect().top:0;const built=[],numbers=[];let n=0;blocks.forEach(b=>{if(b.type==='image'||b.type==='text')n++;numbers.push(n);built.push(renderBlock(b,n))});const pages=[[]];canvas.innerHTML=pageHtml([],1);const page=canvas.querySelector('.paper'),body=page.querySelector('.paperbody');let maxHeight;function calc(){const cs=getComputedStyle(page);const pageHeight=page.offsetHeight||1056;const head=page.querySelector('.paperhead').getBoundingClientRect().height,foot=page.querySelector('.paperfooter').getBoundingClientRect().height;maxHeight=pageHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom)-head-foot-20}calc();const measure=document.createElement('div');measure.style.cssText='visibility:hidden;position:absolute;left:0;top:0;width:100%;';body.appendChild(measure);blocks.forEach((b,i)=>{if(b.type==='table'){tableData(b);let start=0;while(start<b.rows.length){let count=0;let p=pages[pages.length-1];const used=p.reduce((sum,x)=>sum+x.h,0);for(let end=start+1;end<=b.rows.length;end++){measure.innerHTML=tablePart(b,start,end,start===0);const h=measure.firstElementChild.getBoundingClientRect().height+18;if(h+used>maxHeight)break;count=end-start}if(count===0){if(p.length){pages.push([]);continue}count=1}const end=Math.min(start+count,b.rows.length);measure.innerHTML=tablePart(b,start,end,start===0);p.push({html:tablePart(b,start,end,start===0),h:measure.firstElementChild.getBoundingClientRect().height+18});start=end;if(start<b.rows.length)pages.push([])}return}measure.innerHTML=built[i];const h=measure.firstElementChild.getBoundingClientRect().height+18;let p=pages[pages.length-1];const current=p.reduce((total,k)=>total+k.h,0);if(p.length&&current+h>maxHeight){pages.push([]);p=pages[pages.length-1]}p.push({html:built[i],h})});canvas.innerHTML=pages.map((p,i)=>pageHtml(p.map(x=>x.html),i+1,pages.length)).join('');$('#pagecount').textContent=pages.length+' page'+(pages.length===1?'':'s');bindBlocks();
- if(previousY>0&&view==='editor'){
-  const newPages=canvas.querySelectorAll('.paper');
-  const match=newPages[Math.min(pageIndex,newPages.length-1)];
-  const delta=match?match.getBoundingClientRect().top-pageOffset:0;
-  scrollRoot.scrollTop=previousY+delta;
+ const built=[],numbers=[];let n=0;blocks.forEach(b=>{if(b.type==='image'||b.type==='text')n++;numbers.push(n);built.push(renderBlock(b,n))});const pages=[[]];canvas.innerHTML=pageHtml([],1);const page=canvas.querySelector('.paper'),body=page.querySelector('.paperbody');let maxHeight;function calc(){const cs=getComputedStyle(page);const pageHeight=page.offsetHeight||1056;const head=page.querySelector('.paperhead').getBoundingClientRect().height,foot=page.querySelector('.paperfooter').getBoundingClientRect().height;maxHeight=pageHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom)-head-foot-20}calc();const measure=document.createElement('div');measure.style.cssText='visibility:hidden;position:absolute;left:0;top:0;width:100%;';body.appendChild(measure);blocks.forEach((b,i)=>{if(b.type==='table'){tableData(b);let start=0;while(start<b.rows.length){let count=0;let p=pages[pages.length-1];const used=p.reduce((sum,x)=>sum+x.h,0);for(let end=start+1;end<=b.rows.length;end++){measure.innerHTML=tablePart(b,start,end,start===0);const h=measure.firstElementChild.getBoundingClientRect().height+18;if(h+used>maxHeight)break;count=end-start}if(count===0){if(p.length){pages.push([]);continue}count=1}const end=Math.min(start+count,b.rows.length);measure.innerHTML=tablePart(b,start,end,start===0);p.push({html:tablePart(b,start,end,start===0),h:measure.firstElementChild.getBoundingClientRect().height+18});start=end;if(start<b.rows.length)pages.push([])}return}measure.innerHTML=built[i];const h=measure.firstElementChild.getBoundingClientRect().height+18;let p=pages[pages.length-1];const current=p.reduce((total,k)=>total+k.h,0);if(p.length&&current+h>maxHeight){pages.push([]);p=pages[pages.length-1]}p.push({html:built[i],h})});canvas.innerHTML=pages.map((p,i)=>pageHtml(p.map(x=>x.html),i+1,pages.length)).join('');$('#pagecount').textContent=pages.length+' page'+(pages.length===1?'':'s');bindBlocks();
+ if(view==='editor'&&previousY>0){
+  // Do not use smooth scrolling here: a restore must be instantaneous.
+  scrollRoot.scrollTop=previousY;
  }
 }
 function scheduleRender(){guide.updated=Date.now();$('#saveStatus')&&($('#saveStatus').textContent='Saving…');clearTimeout(saveTimer);saveTimer=setTimeout(async()=>{try{await save(guide);$('#saveStatus')&&($('#saveStatus').textContent='Saved locally')}catch(e){toast('Unable to save: browser storage may be full');$('#saveStatus')&&($('#saveStatus').textContent='Save failed')}},300)}
@@ -584,7 +582,19 @@ function bindRich(root,b){
   });
  });
 }
-let layoutTimer;function debouncePages(){clearTimeout(layoutTimer);layoutTimer=setTimeout(()=>{if(view==='editor'&&!document.querySelector('#papers [contenteditable="true"]:focus'))fitPages()},420)}
+let layoutTimer,lastScrollInteraction=0;
+document.addEventListener('scroll',()=>{lastScrollInteraction=Date.now()}, {passive:true,capture:true});
+function debouncePages(){
+ clearTimeout(layoutTimer);
+ const run=()=>{
+  if(view!=='editor')return;
+  if(document.querySelector('#papers [contenteditable="true"]:focus'))return;
+  const elapsed=Date.now()-lastScrollInteraction;
+  if(elapsed<650){layoutTimer=setTimeout(run,650-elapsed);return}
+  fitPages();
+ };
+ layoutTimer=setTimeout(run,420);
+}
 function deselectBlock(){if(view!=='editor'||!guide)return;selected=null;document.querySelectorAll('.block.active').forEach(el=>el.classList.remove('active'));renderInspector();renderOutline()}
 function duplicateSelected(){const b=guide?.blocks.find(x=>x.id===selected);if(!b)return;const i=guide.blocks.indexOf(b),copy={...clone(b),id:uid()};update(()=>{guide.blocks.splice(i+1,0,copy);selected=copy.id},true)}
 function deleteSelected(){if(!selected)return;update(()=>{guide.blocks=guide.blocks.filter(b=>b.id!==selected);selected=null},true)}
