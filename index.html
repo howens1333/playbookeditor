@@ -268,6 +268,106 @@
 .step-image-slot>div{display:block;min-width:0;margin-left:auto;margin-right:0}
 .step-image-slot .crop-frame{margin-left:auto!important;margin-right:0!important}
 .step-image-slot .labeltiny{text-align:right!important}
+/* macOS-native inspired editor shell prototype. Scoped to app chrome ONLY:
+   no .paper, .block, .split, .stepimg, document renderer or pagination changes. */
+body:has(.studio-canvas){background:#e9e9ed}
+body:has(.studio-canvas) .topbar{
+ height:58px;top:0;padding:0 21px;gap:11px;
+ background:rgba(248,248,250,.88);-webkit-backdrop-filter:blur(28px);backdrop-filter:blur(28px);
+ border-bottom:1px solid #d6d6db;box-shadow:0 1px 0 #ffffffa8;
+}
+body:has(.studio-canvas) .topbar::before{
+ content:"";width:56px;height:13px;flex:none;
+ background:radial-gradient(circle at 6px 6.5px,#ff6059 0 5px,transparent 5.5px),
+ radial-gradient(circle at 28px 6.5px,#ffbe2e 0 5px,transparent 5.5px),
+ radial-gradient(circle at 50px 6.5px,#27c83f 0 5px,transparent 5.5px);
+ margin-right:9px
+}
+body:has(.studio-canvas) .topbar .brand{display:none!important}
+body:has(.studio-canvas) .topbar .docname{
+ margin-left:0;max-width:420px;width:min(36vw,420px);
+ color:#242429;font-weight:620;font-size:14px;text-align:center;
+ background:transparent;border:1px solid transparent;border-radius:7px;
+}
+body:has(.studio-canvas) .topbar .docname:focus{
+ background:#fff;border-color:#c6c8cf;box-shadow:0 0 0 3px #007aff20
+}
+body:has(.studio-canvas) .topbar .iconbtn,body:has(.studio-canvas) .topbar .btn{
+ border:1px solid #d6d7db;border-radius:7px;background:linear-gradient(#ffffffeb,#eeeeF0eb);
+ box-shadow:0 1px 2px #17171c0b;color:#29292e;font-size:12px;font-weight:560;
+ min-height:29px;padding:5px 11px
+}
+body:has(.studio-canvas) .topbar .iconbtn{font-size:17px;min-width:33px}
+body:has(.studio-canvas) .topbar .btn.primary{
+ background:#087dff;color:white;border-color:#087dff;
+}
+body:has(.studio-canvas) .topbar .btn:hover,body:has(.studio-canvas) .topbar .iconbtn:hover{filter:brightness(.96)}
+body:has(.studio-canvas) .formatbar{
+ top:58px;min-height:48px;padding:7px 18px;gap:4px;
+ background:rgba(244,244,247,.92);-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px);
+ border-bottom:1px solid #d7d8dd;box-shadow:0 2px 7px #19191d09
+}
+body:has(.studio-canvas) .formatbar select{
+ appearance:none;-webkit-appearance:none;
+ min-height:29px;max-width:200px;background:#fff;
+ border:1px solid #d0d0d7;border-radius:7px;
+ padding:5px 28px 5px 11px;font-size:12px;
+ box-shadow:0 1px 2px #11111108
+}
+body:has(.studio-canvas) .format-action{
+ font-size:12px;min-height:29px;border-radius:7px;padding:5px 9px;
+ font-weight:530;color:#323238
+}
+body:has(.studio-canvas) .format-action:hover{background:#dce1e9;border-color:transparent}
+body:has(.studio-canvas) .format-action:active{background:#cbd6e6}
+body:has(.studio-canvas) .tool-separator{background:#d1d2d9}
+body:has(.studio-canvas) #propertiesButton{
+ border:1px solid #c9ced6;background:#ffffffb8
+}
+body:has(.studio-canvas) #documentSettings{border:1px solid #c9ced6;background:#ffffffb8}
+body:has(.studio-canvas) .studio-properties{
+ top:50%!important;left:50%!important;right:auto!important;bottom:auto!important;
+ height:auto!important;max-height:min(78vh,780px);width:min(460px,94vw);
+ padding:0!important;overflow:auto!important;
+ background:rgba(249,249,251,.98);border:1px solid #ffffffb8;
+ border-radius:14px;box-shadow:0 22px 75px #0004,0 1px 2px #0002;
+ transform:translate(-50%,-45%) scale(.97)!important;
+ opacity:0;pointer-events:none;
+ transition:opacity .17s ease,transform .17s ease,visibility .17s;
+}
+body:has(.studio-canvas) .studio-properties.show{
+ transform:translate(-50%,-50%) scale(1)!important;opacity:1;pointer-events:auto
+}
+body:has(.studio-canvas) .studio-properties .properties-head{
+ background:#f4f4f7;border-bottom:1px solid #dedee4;
+ padding:12px 16px;min-height:48px;
+}
+body:has(.studio-canvas) .studio-properties #inspector{padding:17px 19px}
+body:has(.studio-canvas) .properties-scrim.show{
+ background:#0a15283d;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)
+}
+body:has(.studio-canvas) .studio-properties .field input,
+body:has(.studio-canvas) .studio-properties .field textarea,
+body:has(.studio-canvas) .studio-properties .field select{
+ border-radius:7px;border-color:#d3d3db;background:white
+}
+body:has(.studio-canvas) .studio-properties .field input:focus,
+body:has(.studio-canvas) .studio-properties .field textarea:focus{
+ outline:2px solid #007aff55;outline-offset:0
+}
+@media(max-width:650px){
+ body:has(.studio-canvas) .topbar{height:54px;padding:0 10px;gap:7px}
+ body:has(.studio-canvas) .topbar::before{display:none}
+ body:has(.studio-canvas) .topbar .docname{width:32vw;min-width:92px;text-align:left}
+ body:has(.studio-canvas) .formatbar{top:54px;padding:7px 8px}
+ body:has(.studio-canvas) .studio-properties{top:auto!important;bottom:0!important;left:0!important;width:100%;max-height:85vh;border-radius:15px 15px 0 0;transform:translateY(100%)!important}
+ body:has(.studio-canvas) .studio-properties.show{transform:translateY(0)!important}
+}
+@media print{
+ body:has(.studio-canvas){background:#fff!important}
+ body:has(.studio-canvas) .topbar,body:has(.studio-canvas) .formatbar,
+ body:has(.studio-canvas) .studio-properties,body:has(.studio-canvas) .properties-scrim{display:none!important}
+}
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
 <script>
