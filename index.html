@@ -279,6 +279,25 @@ html,body,.studio-canvas,#papers{overflow-anchor:none}
   object-position:var(--crop-x,50%) var(--crop-y,50%)!important;
  }
 }
+/* Full-width table modules: no enclosing card, table retains its own grid and styling. */
+#papers .block.table-block,
+#papers .block:has(> .patch-table-wrap){
+ padding:0!important;
+ border:0!important;
+ border-radius:0!important;
+ background:transparent!important;
+ box-shadow:none!important;
+ width:100%;
+}
+#papers .block.table-block:hover:not(.active),
+#papers .block:has(> .patch-table-wrap):hover:not(.active){border:0!important}
+#papers .block.table-block>h4,
+#papers .block:has(> .patch-table-wrap)>h4{margin:0 0 9px!important}
+#papers .block.table-block .patch-table-wrap,
+#papers .block:has(> .patch-table-wrap) .patch-table-wrap{width:100%;max-width:100%}
+@media print{
+ #papers .block.table-block{padding:0!important;border:0!important;background:transparent!important}
+}
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
 <script>
