@@ -383,16 +383,16 @@ html,body,.studio-canvas,#papers{overflow-anchor:none}
 .expected-result .expected-content>h4{display:flex!important;align-items:center!important;gap:9px!important;justify-content:flex-start!important}
 .expected-result .expected-content>h4 .expected-icon{position:static!important;display:inline-flex!important;align-items:center;justify-content:center;width:20px!important;height:20px!important;line-height:1!important;font-size:12px!important;flex:none;order:1}
 .expected-result .expected-content>h4{padding-right:0!important}
-/* Reduce boxes and rules in the decision tree without losing its branching. */
-.whatif-tree{margin:8px 0 0!important}
-.whatif-scenario{border-left:0!important;padding:0!important;margin-bottom:10px!important;color:#526674!important;font-size:12px!important}
-.whatif-tree .tree-node-text{border:0!important;border-radius:0!important;background:transparent!important;padding:4px 0!important;box-shadow:none!important}
-.whatif-tree>.tree-question>.tree-node-text{font-weight:650!important;font-size:13px!important;color:#263c4a!important}
-.whatif-tree .tree-branches{gap:20px!important;padding-top:10px!important}
-.whatif-tree .tree-branch{border-left:0!important;padding-left:0!important;min-width:0}
-.whatif-tree .tree-answer{margin-bottom:3px!important}
-.whatif-tree .tree-action>.tree-node-text{padding:0!important;font-size:12px!important;line-height:1.5!important}
-.whatif-tree .tree-question>.tree-branches .tree-question>.tree-node-text{font-weight:650!important;border-bottom:1px solid #e3ebef!important;margin-bottom:5px!important}
+/* Keep decision paths visibly connected and grouped, with calmer spacing. */
+.whatif-tree{margin:10px 0 0!important}
+.whatif-scenario{border-left:0!important;padding:0!important;margin-bottom:12px!important;color:#526674!important;font-size:12px!important}
+.whatif-tree .tree-node-text{border:1px solid #d4e2e9!important;border-radius:7px!important;background:#fff!important;padding:9px 12px!important;box-shadow:none!important;line-height:1.45!important}
+.whatif-tree>.tree-question>.tree-node-text{background:#f3f8fa!important;border-color:#bcd5e2!important;font-size:13px!important;font-weight:600!important;color:#263c4a!important}
+.whatif-tree .tree-branches{gap:16px!important;padding-top:12px!important}
+.whatif-tree .tree-branch{border-left:2px solid #c3dae5!important;padding-left:11px!important;min-width:0}
+.whatif-tree .tree-answer{margin:0 0 6px!important;font-size:10px!important}
+.whatif-tree .tree-action>.tree-node-text{background:#fff!important;font-size:12px!important}
+.whatif-tree .tree-question>.tree-branches .tree-question>.tree-node-text{background:#f5f9fb!important;font-weight:600!important}
 @media print{.whatif-tree .tree-branch,.expected-result h4{break-inside:avoid}}
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
