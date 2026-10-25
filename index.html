@@ -288,6 +288,14 @@ html,body,.studio-canvas,#papers{overflow-anchor:none}
 /* Page breaks are editor-only placement markers, never printed. */
 .manual-page-break{padding:8px;text-align:center;border-top:1px dashed #95a6b0;color:#68808e;font-size:11px}
 @media print{.manual-page-break{display:none!important}}
+/* Selection lives outside content; text, cropped images and cell interactions stay free. */
+#papers .block{position:relative}
+#papers .block .module-select-handle{position:absolute;top:7px;left:-30px;width:24px;height:29px;display:flex;align-items:center;justify-content:center;border:1px solid #cbd8df;background:#fff;border-radius:6px;color:#607a88;opacity:0;pointer-events:none;cursor:grab;font-size:17px;z-index:12;box-shadow:0 1px 5px #122d3714}
+#papers .block:hover>.module-select-handle,#papers .block:focus-within>.module-select-handle,#papers .block.active>.module-select-handle{opacity:1;pointer-events:auto}
+#papers .block .module-select-handle:active{cursor:grabbing}
+@media(max-width:920px){#papers .block .module-select-handle{left:3px;top:-17px}}
+@media(hover:none){#papers .block .module-select-handle{opacity:1;pointer-events:auto}}
+@media print{#papers .block .module-select-handle{display:none!important}}
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
 <script>
@@ -579,6 +587,18 @@ function openImagePicker(block){
 }
 function bindBlocks(){bindDirectText();bindInlineModuleActions();document.querySelectorAll('.patch-table [contenteditable]').forEach(cell=>{cell.addEventListener('click',e=>e.stopPropagation());cell.addEventListener('dblclick',e=>e.stopPropagation());cell.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();cell.blur()}e.stopPropagation()});cell.addEventListener('blur',()=>{const block=guide.blocks.find(b=>b.id===cell.closest('.block')?.dataset.id);if(!block)return;const col=Number(cell.dataset.col),row=Number(cell.dataset.row);if(Number.isInteger(row))block.rows[row][col]=cell.innerText.trim();else block.columns[col]=cell.innerText.trim();scheduleRender();debouncePages()})});document.querySelectorAll('.block').forEach(el=>{
  const block=guide.blocks.find(b=>b.id===el.dataset.id);
+ // Dedicated module selection and drag handle; never intercept text editing.
+ if(block){
+  const handle=document.createElement('button');
+  handle.type='button';handle.className='module-select-handle';handle.textContent='⠿';
+  handle.title='Select or drag this module';handle.setAttribute('aria-label','Select or drag module');
+  handle.draggable=true;
+  handle.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation();selected=block.id;inspectorScope='module';renderInspector();document.querySelectorAll('.block').forEach(x=>x.classList.toggle('active',x.dataset.id===selected));renderOutline()});
+  handle.addEventListener('dragstart',ev=>{ev.stopPropagation();dragId=block.id;ev.dataTransfer.effectAllowed='move';ev.dataTransfer.setData('text/plain',dragId)});
+  el.appendChild(handle);
+  el.draggable=false;
+ }
+
  if(block&&['image','photo'].includes(block.type)){
   const target=el.querySelector('.image-placeholder,.stepimg');
   if(target){target.setAttribute('role','button');target.setAttribute('tabindex','0');target.setAttribute('aria-label',block.image?'Replace image':'Upload image');target.setAttribute('title',block.image?'Click to replace image':'Click to upload an image');
