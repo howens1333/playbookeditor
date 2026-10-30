@@ -1055,7 +1055,21 @@ window.addEventListener('paste',async e=>{
  if(!src&&!direct&&!types.includes('text/plain'))return;
  e.preventDefault();await pasteImageToBlock(b,e.clipboardData)
 });
-window.addEventListener('keydown',e=>{if(view!=='editor'||!guide)return;const target=e.target;const typing=target?.matches?.('input,textarea,select,[contenteditable="true"]')||target?.closest?.('[contenteditable="true"]');const mod=e.metaKey||e.ctrlKey;const key=e.key.toLowerCase();const editingText=target?.closest?.('#papers [contenteditable="true"],#inspector [contenteditable="true"]');if(mod&&!e.altKey&&!e.shiftKey&&editingText&&['b','i','u'].includes(key)){e.preventDefault();document.execCommand(({b:'bold',i:'italic',u:'underline'})[key],false,null);editingText.dispatchEvent(new Event('input',{bubbles:true}));requestAnimationFrame(syncFormattingButtons);return}if(e.key==='Escape'){if(typing&&target.blur)target.blur();deselectBlock();return}if(mod&&key==='s'){e.preventDefault();clearTimeout(saveTimer);save(guide).then(()=>{const el=$('#saveStatus');if(el)el.textContent='Saved locally';toast('Saved locally')});return}if(mod&&key==='p'){e.preventDefault();deselectBlock();fitPages();printOptimizedGuide().catch(err=>console.error('PDF export failed',err));return}if(typing)return;if(mod&&key==='d'&&selected){e.preventDefault();duplicateSelected();return}if((e.key==='Delete'||e.key==='Backspace')&&selected){e.preventDefault();deleteSelected();return}if(e.altKey&&e.key==='ArrowUp'&&selected){e.preventDefault();shift(-1);return}if(e.altKey&&e.key==='ArrowDown'&&selected){e.preventDefault();shift(1);return}});
+// Use capture for formatting: inline editors intentionally stop keydown bubbling.
+window.addEventListener('keydown',e=>{
+ if(view!=='editor'||!guide||e.defaultPrevented||e.isComposing)return;
+ const mod=e.metaKey||e.ctrlKey,key=e.key.toLowerCase();
+ if(!mod||e.altKey||e.shiftKey||!['b','i','u'].includes(key))return;
+ const editor=e.target?.closest?.('#papers [contenteditable="true"],#inspector [contenteditable="true"]');
+ if(!editor)return;
+ const sel=window.getSelection();
+ if(!sel?.rangeCount||!editor.contains(sel.anchorNode)||!editor.contains(sel.focusNode))return;
+ e.preventDefault();
+ document.execCommand(({b:'bold',i:'italic',u:'underline'})[key],false,null);
+ editor.dispatchEvent(new Event('input',{bubbles:true}));
+ requestAnimationFrame(syncFormattingButtons);
+},true);
+window.addEventListener('keydown',e=>{if(view!=='editor'||!guide)return;const target=e.target;const typing=target?.matches?.('input,textarea,select,[contenteditable="true"]')||target?.closest?.('[contenteditable="true"]');const mod=e.metaKey||e.ctrlKey;const key=e.key.toLowerCase();if(e.key==='Escape'){if(typing&&target.blur)target.blur();deselectBlock();return}if(mod&&key==='s'){e.preventDefault();clearTimeout(saveTimer);save(guide).then(()=>{const el=$('#saveStatus');if(el)el.textContent='Saved locally';toast('Saved locally')});return}if(mod&&key==='p'){e.preventDefault();deselectBlock();fitPages();printOptimizedGuide().catch(err=>console.error('PDF export failed',err));return}if(typing)return;if(mod&&key==='d'&&selected){e.preventDefault();duplicateSelected();return}if((e.key==='Delete'||e.key==='Backspace')&&selected){e.preventDefault();deleteSelected();return}if(e.altKey&&e.key==='ArrowUp'&&selected){e.preventDefault();shift(-1);return}if(e.altKey&&e.key==='ArrowDown'&&selected){e.preventDefault();shift(1);return}});
 window.addEventListener('beforeunload' ,()=>{if(guide&&view==='editor')save(guide)});
 (async()=>{try{await openDB();guides=await allGuides();if(!guides.length){const g=newGuide('Recording & Uploading a Service',true);await save(g);guides=[g]}}catch(e){document.body.innerHTML='<main style="padding:40px">Browser storage is unavailable. Please use a normal Safari window rather than private mode.</main>';return}renderHome()})();
 })();
