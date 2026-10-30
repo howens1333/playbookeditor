@@ -829,6 +829,11 @@ async function printSizedImage(src){
  printImageCache.set(src,pending);return pending;
 }
 async function printOptimizedGuide(){
+ // Browsers usually suggest the document title as the Save as PDF filename.
+ // The operating system's print dialog ultimately controls the saved filename.
+ const previousTitle=document.title;
+ const pdfTitle=String(guide.title||'Untitled Guide').replace(/[\\/:*?"<>|\x00-\x1F]/g,' ').trim()||'Untitled Guide';
+ document.title=pdfTitle;
  const images=Array.from(document.querySelectorAll('#papers .stepimg'));
  const originals=images.map(img=>img.src);
  const optimized=await Promise.all(originals.map(src=>printSizedImage(src)));
@@ -837,7 +842,7 @@ async function printOptimizedGuide(){
  images.forEach((img,i)=>{if(optimized[i]!==originals[i])img.src=optimized[i]});
  await Promise.all(images.map(img=>img.decode?.().catch(()=>{})||Promise.resolve()));
  let restored=false;
- const restore=()=>{if(restored)return;restored=true;images.forEach((img,i)=>img.src=originals[i]);window.removeEventListener('afterprint',restore)};
+ const restore=()=>{if(restored)return;restored=true;images.forEach((img,i)=>img.src=originals[i]);document.title=previousTitle;window.removeEventListener('afterprint',restore)};
  window.addEventListener('afterprint',restore,{once:true});
  try{window.print()}catch(e){restore();throw e}
 }
@@ -1022,7 +1027,7 @@ window.addEventListener('paste',async e=>{
  if(!src&&!direct&&!types.includes('text/plain'))return;
  e.preventDefault();await pasteImageToBlock(b,e.clipboardData)
 });
-window.addEventListener('keydown',e=>{if(view!=='editor'||!guide)return;const target=e.target;const typing=target?.matches?.('input,textarea,select,[contenteditable="true"]')||target?.closest?.('[contenteditable="true"]');const mod=e.metaKey||e.ctrlKey;const key=e.key.toLowerCase();if(e.key==='Escape'){if(typing&&target.blur)target.blur();deselectBlock();return}if(mod&&key==='s'){e.preventDefault();clearTimeout(saveTimer);save(guide).then(()=>{const el=$('#saveStatus');if(el)el.textContent='Saved locally';toast('Saved locally')});return}if(mod&&key==='p'){e.preventDefault();deselectBlock();fitPages();window.print();return}if(typing)return;if(mod&&key==='d'&&selected){e.preventDefault();duplicateSelected();return}if((e.key==='Delete'||e.key==='Backspace')&&selected){e.preventDefault();deleteSelected();return}if(e.altKey&&e.key==='ArrowUp'&&selected){e.preventDefault();shift(-1);return}if(e.altKey&&e.key==='ArrowDown'&&selected){e.preventDefault();shift(1);return}});
+window.addEventListener('keydown',e=>{if(view!=='editor'||!guide)return;const target=e.target;const typing=target?.matches?.('input,textarea,select,[contenteditable="true"]')||target?.closest?.('[contenteditable="true"]');const mod=e.metaKey||e.ctrlKey;const key=e.key.toLowerCase();if(e.key==='Escape'){if(typing&&target.blur)target.blur();deselectBlock();return}if(mod&&key==='s'){e.preventDefault();clearTimeout(saveTimer);save(guide).then(()=>{const el=$('#saveStatus');if(el)el.textContent='Saved locally';toast('Saved locally')});return}if(mod&&key==='p'){e.preventDefault();deselectBlock();fitPages();printOptimizedGuide().catch(err=>console.error('PDF export failed',err));return}if(typing)return;if(mod&&key==='d'&&selected){e.preventDefault();duplicateSelected();return}if((e.key==='Delete'||e.key==='Backspace')&&selected){e.preventDefault();deleteSelected();return}if(e.altKey&&e.key==='ArrowUp'&&selected){e.preventDefault();shift(-1);return}if(e.altKey&&e.key==='ArrowDown'&&selected){e.preventDefault();shift(1);return}});
 window.addEventListener('beforeunload' ,()=>{if(guide&&view==='editor')save(guide)});
 (async()=>{try{await openDB();guides=await allGuides();if(!guides.length){const g=newGuide('Recording & Uploading a Service',true);await save(g);guides=[g]}}catch(e){document.body.innerHTML='<main style="padding:40px">Browser storage is unavailable. Please use a normal Safari window rather than private mode.</main>';return}renderHome()})();
 })();
