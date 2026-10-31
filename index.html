@@ -579,6 +579,22 @@ html,body,.studio-canvas,#papers{overflow-anchor:none}
 #papers .rich-output h3,#papers .live-edit h3,#inspector .rich-edit h3{font-size:15px!important;font-weight:700;line-height:1.35;color:var(--blue);margin:11px 0 5px!important}
 #papers .rich-output :is(h1,h2,h3):first-child,#inspector .rich-edit :is(h1,h2,h3):first-child{margin-top:0!important}
 @media print{#papers .rich-output :is(h1,h2,h3){break-after:avoid;page-break-after:avoid}}
+/* Compact inline formatting toolbar; advanced commands live in small dropdowns. */
+.studio-float-format{overflow:visible!important;max-width:min(94vw,520px);padding:5px!important;gap:2px!important}
+.studio-float-format .format-action{padding:5px 8px;min-height:30px;font-size:12px}
+.studio-float-format .float-tool-group{display:flex;align-items:center;gap:2px}
+.studio-float-format .float-menu-wrap{position:relative}
+.studio-float-format .float-menu-trigger{display:inline-flex;align-items:center;gap:5px}
+.studio-float-format .float-menu-trigger[aria-expanded="true"]{background:#e8f4f9;border-color:#c7dce5}
+.studio-float-format .float-tool-menu{position:absolute;top:calc(100% + 7px);left:0;width:195px;
+ padding:5px;background:#fff;border:1px solid #d9e3e8;border-radius:9px;
+ box-shadow:0 12px 35px #102b3a29;z-index:155;display:grid;gap:1px}
+.studio-float-format .float-menu-wrap:last-child .float-tool-menu{left:auto;right:0}
+.studio-float-format .float-tool-menu[hidden]{display:none!important}
+.studio-float-format .float-tool-menu .format-action{width:100%;text-align:left;justify-content:flex-start;border-radius:5px;font-size:12px}
+.studio-float-format .float-menu-divider{border-top:1px solid #edf0f2;margin:4px 3px}
+.studio-float-format .float-tool-separator{height:20px;border-left:1px solid #e1e6e9;margin:0 4px}
+@media(max-width:480px){.studio-float-format .format-action{padding:5px 6px}}
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
 <script>
@@ -1362,10 +1378,35 @@ function editGuide(id){
  guide=guides.find(g=>g.id===id);if(!guide)return;
  for(const b of guide.blocks){if((b.type==='image'||b.type==='text')&&(b.note||b.noteHtml)){const legacy=b.noteHtml?cleanHtml(b.noteHtml):'<p>'+nl(b.note)+'</p>';const base=b.textHtml?cleanHtml(b.textHtml):'<p>'+nl(b.text||'')+'</p>';b.textHtml=base+'<p><mark>'+legacy.replace(/^<p>|<\/p>$/g,'')+'</mark></p>';b.text=(b.text||'')+'\n'+(b.note||'');delete b.note;delete b.noteHtml}}
  selected=null;view='editor';document.documentElement.style.setProperty('--blue',guide.accent||'#177da1');
- const tools=[['bold','B','Bold (⌘/Ctrl+B)'],['italic','I','Italic (⌘/Ctrl+I)'],['underline','U','Underline (⌘/Ctrl+U)'],['strikeThrough','S̶','Strikethrough'],['link','🔗 Link','Insert or edit hyperlink (⌘/Ctrl+K)'],['unlink','Unlink','Remove hyperlink'],['removeFormat','Clear','Clear text formatting'],['citation','¹ Citation','Insert a numbered source reference'],['heading1','H1','Heading 1'],['heading2','H2','Heading 2'],['heading3','H3','Heading 3'],['headingNormal','Normal','Normal paragraph'],['insertUnorderedList','• List','Bullets'],['insertOrderedList','1. List','Numbers'],['indent','→','Indent'],['outdent','←','Outdent'],['shortcut','⌘ Button','Key / button'],['menupath','› Path','File or menu path']];
+ const inlineTools=[
+  ['bold','B','Bold (⌘/Ctrl+B)'],['italic','I','Italic (⌘/Ctrl+I)'],
+  ['underline','U','Underline (⌘/Ctrl+U)'],['link','🔗','Insert link (⌘/Ctrl+K)'],
+  ['insertUnorderedList','•','Bulleted list'],['insertOrderedList','1.','Numbered list']
+ ];
+ const extraTools=[
+  ['strikeThrough','S̶','Strikethrough'],['unlink','Unlink','Remove hyperlink'],
+  ['removeFormat','Clear formatting','Clear formatting'],['citation','¹ Citation','Insert source reference'],
+  ['indent','→ Indent','Indent list'],['outdent','← Outdent','Outdent list'],
+  ['shortcut','⌘ Button','Key or button'],['menupath','› Path','File or menu path']
+ ];
+ const floatButton=([cmd,label,title])=>'<button type="button" class="format-action" data-topcmd="'+cmd+'" title="'+title+'">'+label+'</button>';
+ const floatMenu=(name,label,contents)=>'<div class="float-menu-wrap"><button type="button" class="format-action float-menu-trigger" data-float-menu="'+name+'" aria-haspopup="true" aria-expanded="false">'+label+' <span aria-hidden="true">⌄</span></button><div class="float-tool-menu" data-float-panel="'+name+'" hidden>'+contents+'</div></div>';
+ const headingMenu=floatMenu('heading','Normal',[
+ ['headingNormal','Normal text','Normal paragraph'],['heading1','Heading 1','Heading 1'],
+ ['heading2','Heading 2','Heading 2'],['heading3','Heading 3','Heading 3']
+ ].map(floatButton).join(''));
+ const moreMenu=floatMenu('more','More',
+  extraTools.map(floatButton).join('')+'<div class="float-menu-divider"></div>'+
+  '<button class="format-action" data-note="info" title="Information callout">ⓘ Information</button>'+
+  '<button class="format-action" data-note="caution" title="Warning callout">⚠ Warning</button>'+
+  '<button class="format-action" data-note="danger" title="Error callout">⛔ Error</button>');
  $('#app').innerHTML='<div class="topbar"><button class="iconbtn" id="back" title="Back to guides">←</button><div class="brand"><span class="brand-mark">▤</span><span class="desktop-label">Playbook Studio</span></div><input class="docname" id="documentName" aria-label="Document title" value="'+esc(guide.title)+'"><span class="status" id="saveStatus" aria-live="polite" hidden>Saved locally</span><div class="spacer"></div><button class="btn" id="backup">Backup ↓</button><button class="btn primary" id="pdf">Export PDF</button></div>'+
  '<div class="formatbar studio-menubar" role="toolbar" aria-label="Document tools"><div class="studio-menu"><button class="format-action studio-menu-trigger" data-menu="insert" aria-expanded="false" aria-haspopup="true">+ Insert <span class="chevron">⌄</span></button><div class="studio-dropdown" data-menu-panel="insert" hidden><div class="studio-menu-label">INSERT MODULE</div>'+Object.entries(TYPES).map(([k,v])=>'<button class="studio-menu-item" data-insert="'+k+'"><span class="studio-menu-symbol">'+v[1]+'</span><span>'+esc(v[0])+'</span></button>').join('')+'</div></div><div class="studio-menu"><button class="format-action studio-menu-trigger" data-menu="layout" aria-expanded="false" aria-haspopup="true">Layout <span class="chevron">⌄</span></button><div class="studio-dropdown" data-menu-panel="layout" hidden><div class="studio-menu-label">PAGE &amp; LAYOUT</div><button class="studio-menu-item" data-layout="2">▥ <span>Two columns</span></button><button class="studio-menu-item" data-layout="3">▤ <span>Three columns</span></button><button class="studio-menu-item" data-insert="spacer">↕ <span>Spacer</span></button><button class="studio-menu-item" data-insert="pagebreak">↵ <span>Page break</span></button></div></div><div class="studio-menu"><button class="format-action studio-menu-trigger" data-menu="document" aria-expanded="false" aria-haspopup="true">Document <span class="chevron">⌄</span></button><div class="studio-dropdown" data-menu-panel="document" hidden><div class="studio-menu-label">DOCUMENT</div><button class="studio-menu-item" data-document="settings">⚙ <span>Document settings</span></button><button class="studio-menu-item" data-document="backup">↓ <span>Download backup</span></button><button class="studio-menu-item" data-document="pdf">▣ <span>Export PDF</span></button></div></div><div class="format-spacer"></div><button class="format-action" id="propertiesButton" title="Options for selected module">⚙ Module options</button><button class="format-action" id="documentSettings" title="Document settings">⚙ Document settings</button><select id="addBlockSelect" hidden aria-label="Insert block"><option value="">+ Insert block</option></select></div>'+
- '<div class="studio-float-format" id="studioFloatFormat" role="toolbar" aria-label="Selected text formatting" hidden>'+tools.map(([cmd,label,title])=>'<button class="format-action" data-topcmd="'+cmd+'" title="'+title+'">'+label+'</button>').join('')+'<span class="tool-separator"></span><button class="format-action" data-note="info" title="Information callout">ⓘ</button><button class="format-action" data-note="caution" title="Warning callout">⚠</button><button class="format-action" data-note="danger" title="Error callout">⛔</button></div>'+
+ '<div class="studio-float-format" id="studioFloatFormat" role="toolbar" aria-label="Selected text formatting" hidden>'+
+ '<div class="float-tool-group">'+inlineTools.slice(0,3).map(floatButton).join('')+'</div>'+
+ '<span class="float-tool-separator"></span>'+headingMenu+
+ '<span class="float-tool-separator"></span><div class="float-tool-group">'+inlineTools.slice(3).map(floatButton).join('')+'</div>'+
+ '<span class="float-tool-separator"></span>'+moreMenu+'</div>'+
  '<main class="canvas-wrap studio-canvas"><div class="canvasheading"><span></span><span id="pagecount">1 page</span></div><div id="papers"></div></main>'+
  '<div class="properties-scrim" id="propertiesScrim"></div><section class="studio-properties" id="rightbar" role="dialog" aria-modal="true" aria-label="Block options"><div class="properties-head"><strong>Block settings</strong><button class="iconbtn" id="closeProperties" aria-label="Close settings">×</button></div><div id="inspector"></div></section><div id="outline" hidden></div>';
  $('#back').onclick=async()=>{clearTimeout(saveTimer);await save(guide);guides=await allGuides();renderHome()};
@@ -1378,7 +1419,22 @@ function editGuide(id){
  document.addEventListener('click',e=>{if(!e.target.closest('.studio-menu'))closeStudioMenus()});
  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeStudioMenus()});
  const floatBar=$('#studioFloatFormat');
- const placeFloatBar=()=>{if(view!=='editor'||!floatBar?.isConnected)return;syncFormattingButtons();const active=document.activeElement,editor=active?.closest?.('#papers [contenteditable="true"],#inspector [contenteditable="true"]');if(!editor){floatBar.hidden=true;return}const box=editor.getBoundingClientRect();floatBar.hidden=false;floatBar.style.left=Math.max(8,Math.min(window.innerWidth-floatBar.offsetWidth-8,box.left))+'px';floatBar.style.top=Math.max(8,box.top-floatBar.offsetHeight-10)+'px'};
+ const closeFloatMenus=()=>{floatBar.querySelectorAll('[data-float-panel]').forEach(x=>x.hidden=true);floatBar.querySelectorAll('[data-float-menu]').forEach(x=>x.setAttribute('aria-expanded','false'))};
+ const placeFloatBar=()=>{
+  if(view!=='editor'||!floatBar?.isConnected)return;
+  syncFormattingButtons();
+  const active=document.activeElement,editor=active?.closest?.('#papers [contenteditable="true"],#inspector [contenteditable="true"]');
+  if(!editor){if(!floatBar.contains(active)){floatBar.hidden=true;closeFloatMenus()}return}
+  const box=editor.getBoundingClientRect();
+  const selection=window.getSelection(),range=selection?.rangeCount?selection.getRangeAt(0):null;
+  const anchor=range&&editor.contains(range.commonAncestorContainer)?range.getBoundingClientRect():null;
+  const target=anchor&&anchor.width+anchor.height>0?anchor:box;
+  floatBar.hidden=false;
+  const width=floatBar.getBoundingClientRect().width;
+  floatBar.style.left=Math.max(8,Math.min(window.innerWidth-width-8,target.left))+'px';
+  const above=target.top-floatBar.offsetHeight-10;
+  floatBar.style.top=(above>=8?above:Math.min(window.innerHeight-floatBar.offsetHeight-8,target.bottom+9))+'px';
+ };
  document.addEventListener('focusin',()=>requestAnimationFrame(placeFloatBar));
  document.addEventListener('focusout',()=>setTimeout(placeFloatBar,0));
  document.addEventListener('selectionchange',()=>requestAnimationFrame(placeFloatBar));
@@ -1387,8 +1443,14 @@ function editGuide(id){
  document.addEventListener('keyup',()=>requestAnimationFrame(syncFormattingButtons));
  document.addEventListener('mouseup',()=>requestAnimationFrame(syncFormattingButtons));
 
- document.querySelectorAll('[data-topcmd]').forEach(btn=>{btn.onmousedown=e=>e.preventDefault();btn.onclick=()=>topBarFormat(btn.dataset.topcmd)});
- document.querySelectorAll('[data-note]').forEach(btn=>{btn.onmousedown=e=>e.preventDefault();btn.onclick=()=>topBarFormat('inlinenote',btn.dataset.note)});
+ floatBar.querySelectorAll('[data-float-menu]').forEach(btn=>{
+  btn.onmousedown=e=>e.preventDefault();
+  btn.onclick=e=>{e.stopPropagation();const panel=floatBar.querySelector('[data-float-panel="'+btn.dataset.floatMenu+'"]');const open=panel.hidden;closeFloatMenus();panel.hidden=!open;btn.setAttribute('aria-expanded',String(open))};
+ });
+ floatBar.querySelectorAll('[data-topcmd]').forEach(btn=>{btn.onmousedown=e=>e.preventDefault();btn.onclick=()=>{topBarFormat(btn.dataset.topcmd);closeFloatMenus()}});
+ floatBar.querySelectorAll('[data-note]').forEach(btn=>{btn.onmousedown=e=>e.preventDefault();btn.onclick=()=>{topBarFormat('inlinenote',btn.dataset.note);closeFloatMenus()}});
+ document.addEventListener('pointerdown',e=>{if(!floatBar.contains(e.target))closeFloatMenus()});
+ floatBar.addEventListener('keydown',e=>{if(e.key==='Escape'){closeFloatMenus();document.activeElement?.blur?.()}});
  $('#propertiesButton').onclick=()=>showProperties('module');
  $('#documentSettings').onclick=()=>showProperties('document');
  $('#closeProperties').onclick=hideProperties;$('#propertiesScrim').onclick=hideProperties;
