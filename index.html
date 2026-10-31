@@ -595,15 +595,21 @@ html,body,.studio-canvas,#papers{overflow-anchor:none}
 .studio-float-format .float-menu-divider{border-top:1px solid #edf0f2;margin:4px 3px}
 .studio-float-format .float-tool-separator{height:20px;border-left:1px solid #e1e6e9;margin:0 4px}
 @media(max-width:480px){.studio-float-format .format-action{padding:5px 6px}}
-/* Keep every document on Letter paper. Footer at bottom, not high above it.
-   The print layout uses a 10.5in sheet inside Letter to avoid Safari's extra
-   print page; its footer sits at the sheet edge to use that space. */
+/* Letter print parity: 10.75in of the 11in sheet leaves 24px
+   at the physical bottom, matching the existing editor footer inset.
+   Reserve the same content area (110px top, 822px usable body) on both. */
 @media screen{
  #papers .paperfooter{bottom:24px!important}
 }
 @media print{
  @page{size:letter;margin:0}
- #papers .paperfooter{bottom:2px!important}
+ #papers .paper{
+  height:10.75in!important;
+  min-height:10.75in!important;
+  max-height:10.75in!important;
+ }
+ #papers .paperbody{bottom:100px!important}
+ #papers .paperfooter{bottom:0!important}
 }
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
