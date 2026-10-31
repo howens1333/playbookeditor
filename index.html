@@ -595,20 +595,18 @@ html,body,.studio-canvas,#papers{overflow-anchor:none}
 .studio-float-format .float-menu-divider{border-top:1px solid #edf0f2;margin:4px 3px}
 .studio-float-format .float-tool-separator{height:20px;border-left:1px solid #e1e6e9;margin:0 4px}
 @media(max-width:480px){.studio-float-format .format-action{padding:5px 6px}}
-/* Letter print parity: 10.75in of the 11in sheet leaves 24px
-   at the physical bottom, matching the existing editor footer inset.
-   Reserve the same content area (110px top, 822px usable body) on both. */
+/* Same 36px footer inset in Letter preview and PDF, without moving content. */
 @media screen{
- #papers .paperfooter{bottom:24px!important}
+ #papers .paperfooter{bottom:36px!important}
 }
 @media print{
  @page{size:letter;margin:0}
  #papers .paper{
-  height:10.75in!important;
-  min-height:10.75in!important;
-  max-height:10.75in!important;
+  height:10.625in!important;
+  min-height:10.625in!important;
+  max-height:10.625in!important;
  }
- #papers .paperbody{bottom:100px!important}
+ #papers .paperbody{bottom:88px!important}
  #papers .paperfooter{bottom:0!important}
 }
 </style></head><body>
