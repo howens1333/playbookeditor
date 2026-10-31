@@ -533,6 +533,46 @@ html,body,.studio-canvas,#papers{overflow-anchor:none}
 #papers .references-section a{color:var(--blue);text-decoration:underline}
 .playbook-link-dialog select{border:1px solid #cddce4;border-radius:7px;padding:10px;width:100%;font:inherit;background:white}
 @media print{#papers .references-section{break-inside:avoid}}
+/* WYSIWYG page geometry. Screen and PDF use the same document coordinates.
+   Do not let responsive app layout silently change page typography or padding. */
+@media screen{
+ #papers{overflow-x:auto;overflow-y:visible}
+ #papers .paper{
+  box-sizing:border-box!important;
+  display:block!important;position:relative!important;
+  width:816px!important;min-width:816px!important;max-width:816px!important;
+  height:1056px!important;min-height:1056px!important;max-height:1056px!important;
+  aspect-ratio:auto!important;
+  padding:0!important;
+ }
+ #papers .paperhead{
+  position:absolute!important;left:48px!important;right:48px!important;top:44px!important;
+  height:50px!important;min-height:0!important;margin:0!important;
+ }
+ #papers .paperbody{
+  position:absolute!important;left:48px!important;right:48px!important;
+  top:110px!important;bottom:124px!important;
+  display:block!important;flex:none!important;min-height:0!important;
+  margin:0!important;padding:0!important;
+ }
+ #papers .paperfooter{
+  position:absolute!important;left:48px!important;right:48px!important;
+  bottom:83px!important;margin:0!important;padding:0!important;
+  width:auto!important;
+ }
+ #papers .paper-title{font-size:32px!important;line-height:1.2!important}
+ #papers .block{font-size:inherit}
+}
+/* Print deliberately matches the screen's usable content box.
+   Safari's 10.5in print sheet reserve prevents browser headers from
+   pushing a footer onto an additional page. The last 48px of the screen
+   preview is outside that printable sheet. */
+@media print{
+ #papers .paperhead{left:48px!important;right:48px!important;top:44px!important}
+ #papers .paperbody{left:48px!important;right:48px!important;top:110px!important;bottom:76px!important}
+ #papers .paperfooter{left:48px!important;right:48px!important;bottom:35px!important;width:720px!important}
+ #papers .paper-title{font-size:32px!important;line-height:1.2!important}
+}
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
 <script>
@@ -725,7 +765,10 @@ function fitPages(){const blocks=[...guide.blocks,...(citedSources().length?[{ty
  // unstable when text or images change pagination.
  const scrollRoot=document.scrollingElement||document.documentElement;
  const previousY=scrollRoot.scrollTop;
- const built=[],numbers=[];let n=0;blocks.forEach(b=>{if(b.type==='image'||b.type==='text')n++;numbers.push(n);built.push(renderBlock(b,n))});const pages=[[]];canvas.innerHTML=pageHtml([],1);const page=canvas.querySelector('.paper'),body=page.querySelector('.paperbody');let maxHeight;function calc(){const cs=getComputedStyle(page);const pageHeight=page.offsetHeight||1056;const head=page.querySelector('.paperhead')?.getBoundingClientRect().height||0,foot=page.querySelector('.paperfooter').getBoundingClientRect().height;maxHeight=pageHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom)-head-foot-20}calc();const headerHeight=page.querySelector('.paperhead')?.getBoundingClientRect().height||0;const capacity=(index)=>maxHeight+(showPageHeader(1)&&!showPageHeader(index+1)?headerHeight:0);const measure=document.createElement('div');measure.style.cssText='visibility:hidden;position:absolute;left:0;top:0;width:100%;';body.appendChild(measure);blocks.forEach((b,i)=>{if(b.type==='pagebreak'){if(pages[pages.length-1].length)pages.push([]);return}if(b.type==='table'){tableData(b);let start=0;while(start<b.rows.length){let count=0;let p=pages[pages.length-1];const used=p.reduce((sum,x)=>sum+x.h,0);const stopAt=(b.pageBreakRows||[]).find(row=>Number.isInteger(row)&&row>start&&row<b.rows.length);for(let end=start+1;end<=b.rows.length&&(stopAt===undefined||end<=stopAt);end++){measure.innerHTML=tablePart(b,start,end,start===0);const h=measure.firstElementChild.getBoundingClientRect().height+18;if(h+used>capacity(pages.length-1))break;count=end-start}if(count===0){if(p.length){pages.push([]);continue}count=1}const end=Math.min(start+count,b.rows.length);measure.innerHTML=tablePart(b,start,end,start===0);p.push({html:tablePart(b,start,end,start===0),h:measure.firstElementChild.getBoundingClientRect().height+18});start=end;if(start<b.rows.length&&(stopAt===start||count>0))pages.push([])}return}measure.innerHTML=built[i];const h=measure.firstElementChild.getBoundingClientRect().height+18;let p=pages[pages.length-1];const current=p.reduce((total,k)=>total+k.h,0);if(p.length&&current+h>capacity(pages.length-1)){pages.push([]);p=pages[pages.length-1]}p.push({html:built[i],h})});canvas.innerHTML=pages.map((p,i)=>pageHtml(p.map(x=>x.html),i+1,pages.length)).join('');$('#pagecount').textContent=pages.length+' page'+(pages.length===1?'':'s');bindBlocks();
+ const built=[],numbers=[];let n=0;blocks.forEach(b=>{if(b.type==='image'||b.type==='text')n++;numbers.push(n);built.push(renderBlock(b,n))});const pages=[[]];canvas.innerHTML=pageHtml([],1);const page=canvas.querySelector('.paper'),body=page.querySelector('.paperbody');// Measure the same usable content region as the PDF rather than
+ // estimating from screen-only padding; this also prevents overflow.
+ let maxHeight=Math.max(100,Math.floor(body.getBoundingClientRect().height)-12);
+ const capacity=()=>maxHeight;const measure=document.createElement('div');measure.style.cssText='visibility:hidden;position:absolute;left:0;top:0;width:100%;';body.appendChild(measure);blocks.forEach((b,i)=>{if(b.type==='pagebreak'){if(pages[pages.length-1].length)pages.push([]);return}if(b.type==='table'){tableData(b);let start=0;while(start<b.rows.length){let count=0;let p=pages[pages.length-1];const used=p.reduce((sum,x)=>sum+x.h,0);const stopAt=(b.pageBreakRows||[]).find(row=>Number.isInteger(row)&&row>start&&row<b.rows.length);for(let end=start+1;end<=b.rows.length&&(stopAt===undefined||end<=stopAt);end++){measure.innerHTML=tablePart(b,start,end,start===0);const h=measure.firstElementChild.getBoundingClientRect().height+18;if(h+used>capacity(pages.length-1))break;count=end-start}if(count===0){if(p.length){pages.push([]);continue}count=1}const end=Math.min(start+count,b.rows.length);measure.innerHTML=tablePart(b,start,end,start===0);p.push({html:tablePart(b,start,end,start===0),h:measure.firstElementChild.getBoundingClientRect().height+18});start=end;if(start<b.rows.length&&(stopAt===start||count>0))pages.push([])}return}measure.innerHTML=built[i];const h=measure.firstElementChild.getBoundingClientRect().height+18;let p=pages[pages.length-1];const current=p.reduce((total,k)=>total+k.h,0);if(p.length&&current+h>capacity(pages.length-1)){pages.push([]);p=pages[pages.length-1]}p.push({html:built[i],h})});canvas.innerHTML=pages.map((p,i)=>pageHtml(p.map(x=>x.html),i+1,pages.length)).join('');$('#pagecount').textContent=pages.length+' page'+(pages.length===1?'':'s');bindBlocks();
  if(view==='editor'&&previousY>0){
   // Do not use smooth scrolling here: a restore must be instantaneous.
   scrollRoot.scrollTop=previousY;
