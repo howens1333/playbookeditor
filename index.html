@@ -448,6 +448,23 @@ html,body,.studio-canvas,#papers{overflow-anchor:none}
  margin-top:8px;pointer-events:none;
 }
 @media print{#papers .block.drop-before::before,#papers .block.drop-after::after,#papers .paperbody.drop-at-end::after{display:none!important}}
+/* Safari may reserve space for its own print headers/footers even with @page margin:0.
+   Fit each pre-paginated document sheet in the printable area to avoid a trailing
+   footer-only sheet. Keep the app's own footer inside the same page. */
+@media print{
+  #papers .paper{
+    height:10.5in!important;
+    min-height:10.5in!important;
+    max-height:10.5in!important;
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+  #papers .paper:last-child{
+    break-after:auto!important;
+    page-break-after:auto!important;
+  }
+  #papers .paperfooter{bottom:0.36in!important}
+}
 /* Numbered, borderless treatment for sequential instructions and scenarios. */
 #papers .block.module-numbered{position:relative}
 #papers .block.module-numbered.numbered-single{
