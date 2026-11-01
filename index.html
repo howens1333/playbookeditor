@@ -595,19 +595,22 @@ html,body,.studio-canvas,#papers{overflow-anchor:none}
 .studio-float-format .float-menu-divider{border-top:1px solid #edf0f2;margin:4px 3px}
 .studio-float-format .float-tool-separator{height:20px;border-left:1px solid #e1e6e9;margin:0 4px}
 @media(max-width:480px){.studio-float-format .format-action{padding:5px 6px}}
-/* Same 36px footer inset in Letter preview and PDF, without moving content. */
+/* Letter paper in both modes. Use nearly the full physical 11in page in
+   print, avoiding the 0.375in empty tail that had raised the PDF footer.
+   The 2px safety inset prevents Safari rounding into a spurious extra page.
+   Footer: 34px inside the 1054px print sheet + 2px = 36px physical. */
 @media screen{
  #papers .paperfooter{bottom:36px!important}
 }
 @media print{
  @page{size:letter;margin:0}
  #papers .paper{
-  height:10.625in!important;
-  min-height:10.625in!important;
-  max-height:10.625in!important;
+  height:calc(11in - 2px)!important;
+  min-height:calc(11in - 2px)!important;
+  max-height:calc(11in - 2px)!important;
  }
- #papers .paperbody{bottom:88px!important}
- #papers .paperfooter{bottom:0!important}
+ #papers .paperbody{bottom:124px!important}
+ #papers .paperfooter{bottom:34px!important}
 }
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
