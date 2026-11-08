@@ -448,23 +448,7 @@ html,body,.studio-canvas,#papers{overflow-anchor:none}
  margin-top:8px;pointer-events:none;
 }
 @media print{#papers .block.drop-before::before,#papers .block.drop-after::after,#papers .paperbody.drop-at-end::after{display:none!important}}
-/* Safari may reserve space for its own print headers/footers even with @page margin:0.
-   Fit each pre-paginated document sheet in the printable area to avoid a trailing
-   footer-only sheet. Keep the app's own footer inside the same page. */
-@media print{
-  #papers .paper{
-    height:10.5in!important;
-    min-height:10.5in!important;
-    max-height:10.5in!important;
-    break-inside:avoid!important;
-    page-break-inside:avoid!important;
-  }
-  #papers .paper:last-child{
-    break-after:auto!important;
-    page-break-after:auto!important;
-  }
-  #papers .paperfooter{bottom:0.36in!important}
-}
+/* Legacy 10.5in print-sheet override removed: it created mismatched margins. */
 /* Numbered, borderless treatment for sequential instructions and scenarios. */
 #papers .block.module-numbered{position:relative}
 #papers .block.module-numbered.numbered-single{
@@ -563,10 +547,7 @@ html,body,.studio-canvas,#papers{overflow-anchor:none}
  #papers .paper-title{font-size:32px!important;line-height:1.2!important}
  #papers .block{font-size:inherit}
 }
-/* Print deliberately matches the screen's usable content box.
-   Safari's 10.5in print sheet reserve prevents browser headers from
-   pushing a footer onto an additional page. The last 48px of the screen
-   preview is outside that printable sheet. */
+/* Match editor content coordinates in print. */
 @media print{
  #papers .paperhead{left:48px!important;right:48px!important;top:44px!important}
  #papers .paperbody{left:48px!important;right:48px!important;top:110px!important;bottom:76px!important}
@@ -595,27 +576,30 @@ html,body,.studio-canvas,#papers{overflow-anchor:none}
 .studio-float-format .float-menu-divider{border-top:1px solid #edf0f2;margin:4px 3px}
 .studio-float-format .float-tool-separator{height:20px;border-left:1px solid #e1e6e9;margin:0 4px}
 @media(max-width:480px){.studio-float-format .format-action{padding:5px 6px}}
-/* Print-only Safari footer correction.
-   The native print preview shown by the user adds approximately one
-   footer-margin of whitespace below this document. Avoid stacking another
-   34px inset on the print page; screen maintains its existing 36px inset.
-   Leave the body/text/page dimensions unchanged. */
+/* Paper geometry: Letter 816×1056 CSS px. Use the same 48px
+   margin at the left, right, and bottom (36 PDF points).
+   Safari print has a 2px height buffer; the footer's 46px
+   offset + 2px buffer keeps the physical bottom margin at 48px. */
 @media screen{
- #papers .paperfooter{bottom:36px!important}
+ #papers .paperfooter{
+  bottom:48px!important;left:48px!important;right:48px!important;
+  width:auto!important;margin:0!important;padding:0!important;
+ }
 }
 @media print{
  @page{size:letter;margin:0}
  #papers .paper{
+  width:816px!important;
   height:calc(11in - 2px)!important;
   min-height:calc(11in - 2px)!important;
   max-height:calc(11in - 2px)!important;
  }
- #papers .paperbody{bottom:124px!important}
  #papers .paperfooter{
-  bottom:0!important;
-  margin:0!important;
-  padding:0!important;
+  position:absolute!important;
+  bottom:46px!important;left:48px!important;right:48px!important;
+  width:auto!important;margin:0!important;padding:0!important;
  }
+ #papers .paperbody{bottom:124px!important}
 }
 
 /* Cue-guide column layout and print-friendly styling. */
