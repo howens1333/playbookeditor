@@ -614,29 +614,28 @@ html,body,.studio-canvas,#papers{overflow-anchor:none}
 .cue-guide-table td:nth-child(3),.cue-guide-table td:nth-child(4){white-space:pre-wrap;overflow-wrap:anywhere}
 @media print{.cue-guide-table{font-size:11px}.cue-guide-table td{padding:7px 6px}.cue-guide-table tr{break-inside:avoid;page-break-inside:avoid}}
 
-/* Header geometry: keep both elements within the 0.5in page content margins. */
+/* Match the visible logo mark to the document title, not just its padded image box. */
 @media screen, print{
  #papers .paperhead{
   position:absolute!important;
   left:48px!important;right:48px!important;top:44px!important;
-  width:auto!important;height:38.4px!important;min-height:38.4px!important;
+  width:auto!important;height:0.6in!important;min-height:0.6in!important;
   margin:0!important;padding:0!important;box-sizing:border-box!important;
-  display:flex!important;flex-direction:row!important;
-  align-items:center!important;justify-content:space-between!important;
+  display:flex!important;align-items:center!important;justify-content:space-between!important;
   gap:12px!important;
  }
  #papers .paperhead .paper-title{
   flex:1 1 auto!important;min-width:0!important;
-  height:38.4px!important;min-height:38.4px!important;
+  height:0.6in!important;min-height:0.6in!important;
   display:flex!important;align-items:center!important;
   margin:0!important;padding:0!important;line-height:1!important;
-  font-size:32px!important;box-sizing:border-box!important;
+  font-size:38px!important;font-weight:650!important;box-sizing:border-box!important;
  }
  #papers .paperhead .static-logo{
   display:block!important;position:static!important;
-  flex:0 0 38.4px!important;width:38.4px!important;
-  min-width:38.4px!important;max-width:38.4px!important;
-  height:38.4px!important;min-height:38.4px!important;max-height:38.4px!important;
+  flex:0 0 0.6in!important;width:0.6in!important;
+  min-width:0.6in!important;max-width:0.6in!important;
+  height:0.6in!important;min-height:0.6in!important;max-height:0.6in!important;
   object-fit:contain!important;margin:0!important;padding:0!important;
  }
 }
