@@ -613,6 +613,34 @@ html,body,.studio-canvas,#papers{overflow-anchor:none}
 .cue-guide-table td:first-child{font-weight:650}
 .cue-guide-table td:nth-child(3),.cue-guide-table td:nth-child(4){white-space:pre-wrap;overflow-wrap:anywhere}
 @media print{.cue-guide-table{font-size:11px}.cue-guide-table td{padding:7px 6px}.cue-guide-table tr{break-inside:avoid;page-break-inside:avoid}}
+
+/* Header geometry: keep both elements within the 0.5in page content margins. */
+@media screen, print{
+ #papers .paperhead{
+  position:absolute!important;
+  left:48px!important;right:48px!important;top:44px!important;
+  width:auto!important;height:38.4px!important;min-height:38.4px!important;
+  margin:0!important;padding:0!important;box-sizing:border-box!important;
+  display:flex!important;flex-direction:row!important;
+  align-items:center!important;justify-content:space-between!important;
+  gap:12px!important;
+ }
+ #papers .paperhead .paper-title{
+  flex:1 1 auto!important;min-width:0!important;
+  height:38.4px!important;min-height:38.4px!important;
+  display:flex!important;align-items:center!important;
+  margin:0!important;padding:0!important;line-height:1!important;
+  font-size:32px!important;box-sizing:border-box!important;
+ }
+ #papers .paperhead .static-logo{
+  display:block!important;position:static!important;
+  flex:0 0 38.4px!important;width:38.4px!important;
+  min-width:38.4px!important;max-width:38.4px!important;
+  height:38.4px!important;min-height:38.4px!important;max-height:38.4px!important;
+  object-fit:contain!important;margin:0!important;padding:0!important;
+ }
+}
+
 </style></head><body>
 <div id="app"></div><div class="toast" id="toast"></div>
 <script>
@@ -1531,22 +1559,3 @@ window.addEventListener('beforeunload' ,()=>{if(guide&&view==='editor')save(guid
 (async()=>{try{await openDB();guides=await allGuides();if(!guides.length){const g=newGuide('Recording & Uploading a Service',true);await save(g);guides=[g]}}catch(e){document.body.innerHTML='<main style="padding:40px">Browser storage is unavailable. Please use a normal Safari window rather than private mode.</main>';return}renderHome()})();
 })();
 </script></body></html>
-
-/* Keep the page header and logo inside the Letter page content box.
-   Letter pages are 816 × 1056 CSS px at 96 dpi; 0.5in margins = 48px. */
-@media screen, print{
- #papers .paperhead{
-  position:absolute!important;left:48px!important;right:48px!important;
-  width:auto!important;top:44px!important;height:0.4in!important;min-height:0.4in!important;
-  margin:0!important;padding:0!important;box-sizing:border-box!important;
-  display:flex!important;align-items:center!important;justify-content:space-between!important;
- }
- #papers .paper-title{
-  height:0.4in!important;display:flex!important;align-items:center!important;
-  margin:0!important;padding:0!important;line-height:1!important;font-size:32px!important;
- }
- #papers .static-logo{
-  display:block!important;flex:0 0 0.4in!important;width:0.4in!important;
-  height:0.4in!important;max-width:0.4in!important;object-fit:contain!important;margin:0!important;
- }
-}
