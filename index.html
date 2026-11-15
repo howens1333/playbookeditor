@@ -12,8 +12,8 @@
 .toolsgrid>div{min-width:0;}
 .split{align-items:start;}
 .stepimg{background:transparent;object-fit:contain;object-position:top center;}
-.paperhead{min-height:43px;flex-shrink:0;}
-.static-logo{width:48px;height:48px;object-fit:contain;flex:none;}
+.paperhead{width:100%;min-height:0.4in;align-items:center;flex-shrink:0;}
+.static-logo{display:block;width:0.4in;height:0.4in;object-fit:contain;flex:none;margin:0 0 0 auto;}
 .rich-toolbar{display:flex;gap:4px;border:1px solid #d9e1e5;border-radius:9px 9px 0 0;padding:5px;flex-wrap:wrap;}
 .rich-toolbar button{background:#fff;border:0;border-radius:5px;padding:5px 8px;cursor:pointer;}
 .rich-toolbar button:hover{background:#e8f4f9;}
@@ -50,8 +50,8 @@
   .paper:last-child{break-after:auto!important;page-break-after:auto!important}
   .paperhead{position:absolute!important;display:flex!important;visibility:visible!important;
     left:0.5in!important;right:0.5in!important;top:0.46in!important;
-    height:0.52in!important;margin:0!important;padding:0!important;
-    align-items:flex-start!important;justify-content:space-between!important;z-index:10!important}
+    height:0.4in!important;margin:0!important;padding:0!important;
+    align-items:center!important;justify-content:space-between!important;z-index:10!important}
   .paper-title{display:block!important;visibility:visible!important;opacity:1!important;
     color:#177da1!important;font-size:32px!important;line-height:1.2!important}
   .static-logo{visibility:visible!important}
@@ -531,7 +531,7 @@ html,body,.studio-canvas,#papers{overflow-anchor:none}
  }
  #papers .paperhead{
   position:absolute!important;left:48px!important;right:48px!important;top:44px!important;
-  height:50px!important;min-height:0!important;margin:0!important;
+  height:0.4in!important;min-height:0!important;margin:0!important;align-items:center!important;
  }
  #papers .paperbody{
   position:absolute!important;left:48px!important;right:48px!important;
