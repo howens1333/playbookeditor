@@ -13,6 +13,7 @@ Open `index.html` in a browser, or publish the repository through GitHub Pages. 
 - Browser-local storage (IndexedDB)
 - JSON guide backup/export and import
 - Print / Save as PDF through the browser
+- Per-module final-page placement with compact spacing when needed
 
 ## Publish on GitHub Pages
 
