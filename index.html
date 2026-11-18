@@ -975,7 +975,7 @@ function insertListSoftReturn(e,editor){
   const current=anchor?.nodeType===1?anchor:anchor?.parentElement;
   const item=current?.closest?.('li');
   if(!item||!editor.contains(item))return false;
-  e.preventDefault();document.execCommand('insertLineBreak',false,null);
+  e.preventDefault();e.stopPropagation();document.execCommand('insertLineBreak',false,null);
   editor.dispatchEvent(new Event('input',{bubbles:true}));return true;
  }
  function bindDirectText(){
