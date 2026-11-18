@@ -808,35 +808,7 @@ function checklistContent(b){
   }
   return output;
  }
- function removeChecklistItem(b,index){
-  if(!Number.isInteger(index)||index<0)return;
-  if(b.textHtml){
-   const root=new DOMParser().parseFromString('<div>'+cleanHtml(b.textHtml)+'</div>','text/html').body.firstElementChild;
-   const nodes=Array.from(root.childNodes);
-   const hasBlocks=nodes.some(n=>n.nodeType===1&&['UL','OL','P','DIV','H1','H2','H3'].includes(n.tagName));
-   if(!hasBlocks){if(index===0)root.innerHTML=''}
-   else{
-    let current=0;
-    for(const node of nodes){
-     if(node.nodeType===3){if(node.textContent.trim()&&current++===index)node.remove();continue}
-     if(node.nodeType!==1||['H1','H2','H3'].includes(node.tagName))continue;
-     if(node.tagName==='UL'||node.tagName==='OL'){
-      for(const li of Array.from(node.children).filter(child=>child.tagName==='LI'))if(current++===index){li.remove();break}
-      if(!node.querySelector('li'))node.remove();
-     }else if(node.textContent.trim()&&current++===index)node.remove();
-    }
-   }
-   b.textHtml=cleanHtml(root.innerHTML);b.text=root.textContent||'';
-  }else{
-   let current=0;
-   b.text=String(b.text||'').split('\n').filter(line=>{
-    const value=line.trim();if(!value||/^#{1,3}\s+/.test(value))return true;
-    return current++!==index;
-   }).join('\n');
-  }
-  if(Array.isArray(b.checkedItems))b.checkedItems.splice(index,1);
- }
-  function issueEntries(b){return Array.isArray(b.entries)&&b.entries.length?b.entries:[{title:b.title||'Problem',text:b.text||'',textHtml:b.textHtml||''}]}
+   function issueEntries(b){return Array.isArray(b.entries)&&b.entries.length?b.entries:[{title:b.title||'Problem',text:b.text||'',textHtml:b.textHtml||''}]}
 function defaultTree(){return {kind:'question',text:'Is the equipment powered on?',yes:{kind:'action',text:'Continue with setup.'},no:{kind:'action',text:'Check power and connections.'}}}
 function treeNodeAt(root,path){let node=root;for(const key of path.split('.').filter(Boolean)){if(!node||node.kind!=='question')return null;node=node[key]}return node}
 function treeMarkup(node,path='',depth=0){if(!node||depth>8)return '';const question=node.kind==='question';return `<div class="whatif-tree-node ${question?'tree-question':'tree-action'}" data-tree-path="${esc(path)}"><div class="tree-node-text">${esc(node.text|| (question?'Enter a question…':'Enter the next action…'))}</div>${question?`<div class="tree-branches"><div class="tree-branch"><div class="tree-answer">YES</div>${treeMarkup(node.yes,path?path+'.yes':'yes',depth+1)}</div><div class="tree-branch"><div class="tree-answer">NO</div>${treeMarkup(node.no,path?path+'.no':'no',depth+1)}</div></div>`:''}</div>`}
@@ -1165,66 +1137,6 @@ function openImagePicker(block){
  picker.onchange=async()=>{const file=picker.files?.[0];if(file)await loadImage(file,block);picker.value=''};
  picker.click();
 }
-function bindChecklistInputs(){
-  document.querySelectorAll('#papers .block').forEach(el=>{
-   const block=findBlock(el.dataset.id);if(!block||block.type!=='checklist')return;
-   el.querySelectorAll('.check-input').forEach(input=>{
-    input.addEventListener('click',e=>e.stopPropagation());
-    input.addEventListener('change',()=>{
-     const index=Number(input.dataset.checklistIndex);
-     block.checkedItems=Array.isArray(block.checkedItems)?block.checkedItems:[];
-     block.checkedItems[index]=input.checked;scheduleRender();
-    });
-   });
-   el.querySelectorAll('.check-text').forEach(text=>{
-    text.addEventListener('click',e=>e.stopPropagation());
-    text.addEventListener('keydown',e=>{
-     e.stopPropagation();
-     if(e.key!=='Enter')return;
-     if(e.shiftKey){e.preventDefault();document.execCommand('insertLineBreak',false,null);text.dispatchEvent(new Event('input',{bubbles:true}));return}
-     e.preventDefault();
-     const index=Number(text.dataset.checklistIndex);
-     const root=new DOMParser().parseFromString('<div>'+cleanHtml(block.textHtml||'')+'</div>','text/html').body.firstElementChild;
-     const lists=[...root.querySelectorAll('ul,ol')],items=lists.flatMap(list=>[...list.children].filter(n=>n.tagName==='LI'));
-     if(!lists.length){const list=document.createElement('ul');root.appendChild(list);lists.push(list)}
-     let current=items[index],list=current?.parentElement||lists[0];
-     const next=document.createElement('li');next.innerHTML='';
-     if(current)current.after(next);else list.appendChild(next);
-     block.textHtml=cleanHtml(root.innerHTML);block.text=root.textContent||'';
-     block.checkedItems=Array.isArray(block.checkedItems)?block.checkedItems:[];
-     block.checkedItems.splice(index+1,0,false);
-     scheduleRender();
-     requestAnimationFrame(()=>{const nextText=el.querySelector('.check-text[data-checklist-index="'+(index+1)+'"]');nextText?.focus()});
-    });
-    text.addEventListener('input',()=>{
-     const index=Number(text.dataset.checklistIndex);
-     const root=new DOMParser().parseFromString('<div>'+cleanHtml(block.textHtml||'')+'</div>','text/html').body.firstElementChild;
-     const items=[...root.querySelectorAll('ul,ol')].flatMap(list=>[...list.children].filter(n=>n.tagName==='LI'));
-     if(items[index])items[index].innerHTML=cleanHtml(text.innerHTML);
-     else if(index===0)root.innerHTML='<ul><li>'+cleanHtml(text.innerHTML)+'</li></ul>';
-     block.textHtml=cleanHtml(root.innerHTML);block.text=root.textContent||'';
-     scheduleRender();debouncePages();
-    });
-    text.addEventListener('paste',e=>{
-     const plain=e.clipboardData?.getData('text/plain');if(plain==null)return;
-     e.preventDefault();document.execCommand('insertText',false,plain);
-    });
-   });
-   const checks=el.querySelector('.checks');
-   if(checks&&!checks.querySelector('.add-checklist-group')){
-    const add=document.createElement('button');add.type='button';add.className='add-checklist-group';add.textContent='+ Add another checklist';
-    add.addEventListener('click',e=>{
-     e.stopPropagation();
-     const root=new DOMParser().parseFromString('<div>'+cleanHtml(block.textHtml||'')+'</div>','text/html').body.firstElementChild;
-     const heading=document.createElement('h3');heading.textContent='NEW CHECKLIST';
-     const list=document.createElement('ul');list.innerHTML='<li></li>';
-     root.append(heading,list);block.textHtml=cleanHtml(root.innerHTML);block.text=root.textContent||'';
-     scheduleRender();requestAnimationFrame(()=>el.querySelector('.check-text:last-of-type')?.focus());
-    });
-    checks.appendChild(add);
-   }
-  });
- }
  function bindBlocks(){bindDirectText();bindInlineModuleActions();document.querySelectorAll('#papers .layout-insert').forEach(select=>select.addEventListener('change',e=>{e.stopPropagation();if(!select.value)return;const cell=select.closest('.layout-cell');addBlock(select.value,{layoutId:cell.dataset.layout,cellIndex:Number(cell.dataset.cell)})}));document.querySelectorAll('#papers .layout-cell').forEach(cell=>{cell.addEventListener('dragover',e=>{if(!dragId||dragId===cell.dataset.layout)return;e.preventDefault();e.stopPropagation();cell.classList.add('layout-drop-active')});cell.addEventListener('dragleave',e=>{if(!cell.contains(e.relatedTarget))cell.classList.remove('layout-drop-active')});cell.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();cell.classList.remove('layout-drop-active');moveBlockToCell(dragId,cell.dataset.layout,Number(cell.dataset.cell))})});document.querySelectorAll('.patch-table [contenteditable]').forEach(cell=>{cell.addEventListener('click',e=>e.stopPropagation());cell.addEventListener('dblclick',e=>e.stopPropagation());cell.addEventListener('keydown',e=>{if(e.key==='Enter'){if(e.shiftKey&&cell.closest('.cue-guide-table')&&Number(cell.dataset.col)>=2){e.stopPropagation();return}e.preventDefault();cell.blur()}e.stopPropagation()});cell.addEventListener('blur',()=>{const block=findBlock(cell.closest('.block')?.dataset.id);if(!block)return;const col=Number(cell.dataset.col),row=Number(cell.dataset.row);if(Number.isInteger(row))block.rows[row][col]=cell.innerText.trim();else block.columns[col]=cell.innerText.trim();scheduleRender();debouncePages()})});document.querySelectorAll('.block').forEach(el=>{
  const block=findBlock(el.dataset.id);
  // Dedicated module selection and drag handle; never intercept text editing.
