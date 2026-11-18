@@ -1194,6 +1194,7 @@ function bindChecklistInputs(){
     text.addEventListener('keydown',e=>{
      e.stopPropagation();
      if(e.key!=='Enter')return;
+     if(e.shiftKey){e.preventDefault();document.execCommand('insertLineBreak',false,null);text.dispatchEvent(new Event('input',{bubbles:true}));return}
      e.preventDefault();
      const index=Number(text.dataset.checklistIndex);
      const root=new DOMParser().parseFromString('<div>'+cleanHtml(block.textHtml||'')+'</div>','text/html').body.firstElementChild;
