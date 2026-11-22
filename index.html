@@ -1252,7 +1252,33 @@ function bindRich(root,b){
    el.dispatchEvent(new Event('input'));
    remember();
   });
-  el.addEventListener('keydown',e=>{if(insertListSoftReturn(e,el)){remember();return}if(e.key==='Enter'&&!e.shiftKey&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!window.getSelection()?.anchorNode?.parentElement?.closest('li,ul,ol,h1,h2,h3')){e.preventDefault();document.execCommand('insertLineBreak',false,null)}});
+  if(b.type==='checklist'&&!el.querySelector('ul,ol')){
+   const content=el.innerHTML.trim();
+   const text=el.textContent.trim();
+   if(content){el.innerHTML='<ul><li>'+content+'</li></ul>';b.textHtml=cleanHtml(el.innerHTML);b.text=el.innerText||text}
+  }
+  el.addEventListener('keydown',e=>{
+   if(insertListSoftReturn(e,el)){remember();return}
+   if(b.type==='checklist'&&e.key==='Enter'&&!e.shiftKey&&!e.metaKey&&!e.ctrlKey&&!e.altKey){
+    const sel=window.getSelection(),node=sel?.anchorNode,container=node?.nodeType===1?node:node?.parentElement;
+    const item=container?.closest('li');
+    if(!item||!el.contains(item)){
+     e.preventDefault();
+     const list=el.querySelector('ul')||el.appendChild(document.createElement('ul'));
+     const next=document.createElement('li');next.innerHTML='<br>';list.appendChild(next);
+     const range=document.createRange();range.selectNodeContents(next);range.collapse(true);sel.removeAllRanges();sel.addRange(range);
+     el.dispatchEvent(new Event('input',{bubbles:true}));remember();return;
+    }
+    if(!item.textContent.trim()&&!item.querySelector('img,table')){
+     e.preventDefault();
+     const next=document.createElement('li');next.innerHTML='<br>';item.after(next);
+     const range=document.createRange();range.selectNodeContents(next);range.collapse(true);sel.removeAllRanges();sel.addRange(range);
+     el.dispatchEvent(new Event('input',{bubbles:true}));remember();return;
+    }
+    return;
+   }
+   if(e.key==='Enter'&&!e.shiftKey&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!window.getSelection()?.anchorNode?.parentElement?.closest('li,ul,ol,h1,h2,h3')){e.preventDefault();document.execCommand('insertLineBreak',false,null)}
+  });
   el.addEventListener('keydown',e=>{if(e.key==='Tab'&&window.getSelection()?.anchorNode?.parentElement?.closest('li')){e.preventDefault();document.execCommand(e.shiftKey?'outdent':'indent',false,null)}});
   el.addEventListener('input',()=>{const key=el.dataset.rich;b[key+'Html']=cleanHtml(el.innerHTML);b[key]=el.innerText||'';scheduleRender();debouncePages()});
   el.addEventListener('blur',()=>debouncePages());
